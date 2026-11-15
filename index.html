@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#ff6b1a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="zainorder">
 <title>zainorder</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
@@ -232,6 +238,7 @@ function edt(c,id){ed[c]=id;admin();scrollTo(0,0)}
 async function del(c,id){if(!confirm('تأكيد الحذف؟'))return;if(c==='restaurants')for(const p of P.filter(p=>p.rid===id))await db.collection('products').doc(p.id).delete();await db.collection(c).doc(id).delete();await load();admin()}
 async function tg(c,id,k,cur){await db.collection(c).doc(id).update({[k]:!cur});await load();admin()}
 
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h!==cur){prev=cur;cur=h;route()}});
 if(auth)auth.onAuthStateChanged(()=>{if(cur==='admin')route(true)});
 route();
