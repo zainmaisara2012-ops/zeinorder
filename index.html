@@ -124,10 +124,10 @@ function add(id,d){
 }
 function chrome(p){
  const c=cnt(),adm=p==='admin';
- $('nav').style.display=adm?'none':'flex';
+ $('nav').style.display=(adm||p==='reg')?'none':'flex';
  document.querySelectorAll('.nav a[data-p]').forEach(a=>a.classList.toggle('on',a.dataset.p===p));
  $('nc').textContent=c?`(${c})`:'';
- $('cb').style.display=(c&&p!=='cart'&&!adm)?'block':'none';
+ $('cb').style.display=(c&&p!=='cart'&&!adm&&p!=='reg'&&p!=='profile')?'block':'none';
  $('cbb').textContent=`🛒 عرض السلة (${c}) — ${tot()} ل.س`;
  const showFl=O.length&&(p==='home'||p==='orders')&&!adm;
  $('fl').style.display=showFl?'flex':'none';
@@ -143,7 +143,9 @@ function rcard(r){
 }
 function route(keep){
  const h=cur;
+ if(h!=='admin'&&!L('zuser',null))return reg(false);
  if(h==='admin')return admin();
+ if(h==='profile')return reg(true);
  if(h==='cart')return cartPage();
  if(h==='search')return search();
  if(h==='orders')return orders();
@@ -154,7 +156,7 @@ function home(){
  cats=['الكل',...new Set(R.map(r=>r.cat).filter(Boolean))];if(!cats.includes(cat))cat='الكل';
  const last=L('zhist',[])[0];
  const list=R.filter(r=>cat==='الكل'||r.cat===cat);
- $('app').innerHTML=`<div class="top"><div class="w"><div class="hi">أهلاً بك 👋<small>ماذا تريد أن تطلب اليوم؟</small></div><div class="sb" onclick="go('search')">🔍 ابحث عن مطعم أو وجبة...</div></div></div>
+ $('app').innerHTML=`<div class="top"><div class="w"><div class="hi"><span onclick="go('profile')" style="float:left;font-size:26px">👤</span>أهلاً ${esc((L('zuser',{}).n||'').split(' ')[0])} 👋<small>ماذا تريد أن تطلب اليوم؟</small></div><div class="sb" onclick="go('search')">🔍 ابحث عن مطعم أو وجبة...</div></div></div>
  <div class="chips">${cats.map((c,i)=>`<div class="chip ${c===cat?'on':''}" onclick="setCat(${i})">${esc(c)}</div>`).join('')}</div>
  ${O.length?`<div class="car">${O.map(o=>`<div class="bn" ${o.rid?`onclick="go('r=${o.rid}')"`:''}>${o.img?`<img ${im(o.img)}>`:''}<div><b>${esc(o.title)}</b>${esc(o.text)}</div></div>`).join('')}</div>`:''}
  <div class="w">${last?`<div class="reo"><div><b>اطلب مجدداً 🔁</b><br><small style="color:var(--g)">${last.total} ل.س · ${new Date(last.date).toLocaleDateString('ar')}</small></div><button class="btn s" onclick="reorder(0)">إعادة الطلب</button></div>`:''}
@@ -183,6 +185,34 @@ function rest(id){
  chrome('rest');
 }
 const discAll=()=>{const t=tot();if(!coupon||!t)return 0;const v=+coupon.value||0;return coupon.type==='percent'?Math.round(t*Math.min(100,v)/100):Math.min(t,Math.round(v))};
+let tmpLoc=null;
+const mapUrl=l=>`https://www.google.com/maps?q=${l.lat},${l.lng}`;
+function reg(edit){
+ const u=L('zuser',{});tmpLoc=u.loc||null;
+ $('app').innerHTML=`<div class="w" style="padding-top:30px"><div style="text-align:center;font-size:52px">🍔</div><h2 style="text-align:center;margin-top:4px">${edit?'بياناتي':'أهلاً بك في zainorder'}</h2><p style="text-align:center;color:var(--g);margin-bottom:12px">${edit?'عدّل بياناتك ثم احفظ':'سجّل بياناتك مرة واحدة ليصلك طلبك بسرعة'}</p>
+ <div class="box"><input id="rn" placeholder="الاسم الكامل" value="${esc(u.n)}"><input id="ra" type="number" inputmode="numeric" placeholder="العمر" value="${esc(u.age)}"><input id="rp" type="tel" placeholder="رقم الهاتف" value="${esc(u.t)}"><input id="rd" placeholder="العنوان (المدينة - الحي - الشارع)" value="${esc(u.a)}">
+ <button class="btn" style="background:#4285f4;margin-top:6px" onclick="getLoc()">📍 تحديد موقعي على خرائط جوجل</button><div id="lc" style="margin-top:8px;font-size:14px">${u.loc?`✅ تم تحديد موقعك · <a href="${mapUrl(u.loc)}" target="_blank">عرض على الخريطة</a>`:'<span style="color:var(--g)">اختياري، لكنه يسهّل وصول السائق</span>'}</div></div>
+ <button class="btn" onclick="saveReg(${edit})">${edit?'حفظ ✅':'دخول ✅'}</button>${edit?'<button class="btn" style="background:#999;margin-top:8px" onclick="go(\'\')">رجوع</button>':''}</div>`;
+ chrome(edit?'profile':'reg');
+}
+function getLoc(){
+ if(!navigator.geolocation)return alert('جهازك لا يدعم تحديد الموقع، اكتب العنوان بالتفصيل');
+ $('lc').textContent='⏳ جاري تحديد الموقع...';
+ navigator.geolocation.getCurrentPosition(p=>{
+  tmpLoc={lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6)};
+  $('lc').innerHTML=`✅ تم تحديد موقعك · <a href="${mapUrl(tmpLoc)}" target="_blank">عرض على الخريطة</a>`;
+ },()=>{$('lc').textContent='';alert('تعذر تحديد الموقع. فعّل الموقع (GPS) واسمح للمتصفح به، أو اكتب العنوان بالتفصيل')},{enableHighAccuracy:true,timeout:15000});
+}
+function saveReg(edit){
+ const n=$('rn').value.trim(),age=$('ra').value.trim(),t=$('rp').value.trim(),a=$('rd').value.trim();
+ if(!n)return alert('اكتب اسمك');
+ if(!(+age>=5&&+age<=120))return alert('اكتب عمرك بشكل صحيح');
+ if(t.replace(/\D/g,'').length<8)return alert('اكتب رقم هاتف صحيح');
+ if(!a)return alert('اكتب عنوانك');
+ localStorage.setItem('zuser',JSON.stringify({n,age,t,a,loc:tmpLoc}));
+ localStorage.setItem('zinfo',JSON.stringify({n,t,a}));draft={};
+ go('');
+}
 function saveDraft(){draft={n:$('n').value,t:$('t').value,a:$('a').value,o:$('o').value,pay:(document.querySelector('input[name=pay]:checked')||{}).value||'cash'}}
 function pshow(){const e=document.querySelector('input[name=pay]:checked');if(e)$('shi').style.display=e.value==='sham'?'block':'none'}
 async function applyCp(){
@@ -212,11 +242,13 @@ function cartPage(){
  <button class="btn" onclick="send()">إرسال الطلب عبر واتساب ✅</button></div>`;
  pshow();chrome('cart');
 }
+const ex=()=>{const u=L('zuser',{});return u.age?`\n🎂 العمر: ${u.age}`:''};
+const mp=()=>{const u=L('zuser',{});return u.loc?`\n🗺️ موقعي على الخريطة: ${mapUrl(u.loc)}`:''};
 function waNum(n){let d=String(n||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='963'+d.slice(1);return d||WHATSAPP}
 function quick(id){
  const p=P.find(x=>x.id===id);if(!p)return;
  const r=R.find(x=>x.id===p.rid)||{},i=L('zinfo',{});
- const m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${r.name||''}*\n• ${p.name} × 1 = ${p.price}\n\n💰 *المجموع: ${p.price} ل.س*\n💳 طريقة الدفع (كاش / شام كاش): \n\n👤 ${i.n||'الاسم: '}\n📞 ${i.t||'الهاتف: '}\n📍 ${i.a||'العنوان: '}`;
+ const m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${r.name||''}*\n• ${p.name} × 1 = ${p.price}\n\n💰 *المجموع: ${p.price} ل.س*\n💳 طريقة الدفع (كاش / شام كاش): \n\n👤 ${i.n||'الاسم: '}${ex()}\n📞 ${i.t||'الهاتف: '}\n📍 ${i.a||'العنوان: '}${mp()}`;
  const u=`https://wa.me/${waNum(r.wa)}?text=${encodeURIComponent(m)}`;
  if(!window.open(u,'_blank'))location.href=u;
 }
@@ -234,7 +266,7 @@ function send(){
   if(dg)m+=`\n🎟️ كود الخصم (${coupon.code}): −${dg} ل.س`;
   m+=`\n✅ *الإجمالي: ${sub-dg} ل.س*\n\n💳 *طريقة الدفع: ${pay==='sham'?'شام كاش':'كاش عند الاستلام'}*`;
   if(pay==='sham')m+=(g.sham?`\n📱 حساب شام كاش: ${g.sham}`:'')+`\n⚠️ سأرسل إيصال التحويل هنا`;
-  m+=`\n\n👤 ${n}\n📞 ${t}\n📍 ${a}`+(o?`\n📝 ${o}`:'');
+  m+=`\n\n👤 ${n}${ex()}\n📞 ${t}\n📍 ${a}${mp()}`+(o?`\n📝 ${o}`:'');
   return {rest:g.rest,url:`https://wa.me/${waNum(g.wa)}?text=${encodeURIComponent(m)}`};
  });
  const h=L('zhist',[]);h.unshift({date:Date.now(),total:total-d,cart});localStorage.setItem('zhist',JSON.stringify(h.slice(0,20)));
