@@ -218,11 +218,16 @@ function reg(edit){
 }
 function getLoc(){
  if(!navigator.geolocation)return alert('جهازك لا يدعم تحديد الموقع، اكتب العنوان بالتفصيل');
+ const ok=p=>{tmpLoc={lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6)};$('lc').innerHTML=`✅ تم تحديد موقعك · <a href="${mapUrl(tmpLoc)}" target="_blank">عرض على الخريطة</a>`};
+ const fail=e=>{
+  $('lc').innerHTML='<span style="color:#d33">لم يتم تحديد الموقع، يمكنك المتابعة بكتابة العنوان</span>';
+  alert(e&&e.code===1?'تم رفض إذن الموقع.\n\nلتفعيله: اضغط ⋮ في كروم ← الإعدادات ← إعدادات الموقع ← الموقع ← اسمح لهذا الموقع.\nوتأكد أن إذن الموقع مفعّل لتطبيق كروم من إعدادات الهاتف ← التطبيقات ← كروم ← الأذونات.\n\nثم أعد المحاولة.':e&&e.code===2?'الموقع غير متاح الآن. فعّل خدمة الموقع (GPS) من شريط الإشعارات في هاتفك ثم أعد المحاولة.':'انتهت مهلة تحديد الموقع. جرّب في مكان مفتوح أو أعد المحاولة، أو اكتب العنوان بالتفصيل.');
+ };
  $('lc').textContent='⏳ جاري تحديد الموقع...';
- navigator.geolocation.getCurrentPosition(p=>{
-  tmpLoc={lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6)};
-  $('lc').innerHTML=`✅ تم تحديد موقعك · <a href="${mapUrl(tmpLoc)}" target="_blank">عرض على الخريطة</a>`;
- },()=>{$('lc').textContent='';alert('تعذر تحديد الموقع. فعّل الموقع (GPS) واسمح للمتصفح به، أو اكتب العنوان بالتفصيل')},{enableHighAccuracy:true,timeout:15000});
+ navigator.geolocation.getCurrentPosition(ok,e=>{
+  if(e&&e.code===1)return fail(e);
+  navigator.geolocation.getCurrentPosition(ok,fail,{enableHighAccuracy:false,timeout:20000,maximumAge:600000});
+ },{enableHighAccuracy:true,timeout:10000});
 }
 function saveReg(edit){
  const n=$('rn').value.trim(),age=$('ra').value.trim(),t=$('rp').value.trim(),a=$('rd').value.trim();
