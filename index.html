@@ -212,23 +212,9 @@ const notifCard=()=>(msg&&!/^PASTE/.test(VAPID)&&typeof Notification!=='undefine
 function reg(edit){
  const u=L('zuser',{});tmpLoc=u.loc||null;
  $('app').innerHTML=`<div class="w" style="padding-top:30px"><div style="text-align:center;font-size:52px">🍔</div><h2 style="text-align:center;margin-top:4px">${edit?'بياناتي':'أهلاً بك في zainorder'}</h2><p style="text-align:center;color:var(--g);margin-bottom:12px">${edit?'عدّل بياناتك ثم احفظ':'سجّل بياناتك مرة واحدة ليصلك طلبك بسرعة'}</p>
- <div class="box"><input id="rn" placeholder="الاسم الكامل" value="${esc(u.n)}"><input id="ra" type="number" inputmode="numeric" placeholder="العمر" value="${esc(u.age)}"><input id="rp" type="tel" placeholder="رقم الهاتف" value="${esc(u.t)}"><input id="rd" placeholder="العنوان (المدينة - الحي - الشارع)" value="${esc(u.a)}">
- <button class="btn" style="background:#4285f4;margin-top:6px" onclick="getLoc()">📍 تحديد موقعي على خرائط جوجل</button><div id="lc" style="margin-top:8px;font-size:14px">${u.loc?`✅ تم تحديد موقعك · <a href="${mapUrl(u.loc)}" target="_blank">عرض على الخريطة</a>`:'<span style="color:var(--g)">اختياري، لكنه يسهّل وصول السائق</span>'}</div></div>
+ <div class="box"><input id="rn" placeholder="الاسم الكامل" value="${esc(u.n)}"><input id="ra" type="number" inputmode="numeric" placeholder="العمر" value="${esc(u.age)}"><input id="rp" type="tel" placeholder="رقم الهاتف" value="${esc(u.t)}"><input id="rd" placeholder="العنوان (المدينة - الحي - الشارع)" value="${esc(u.a)}"></div>
  <button class="btn" onclick="saveReg(${edit})">${edit?'حفظ ✅':'دخول ✅'}</button>${edit?'<button class="btn" style="background:#999;margin-top:8px" onclick="go(\'\')">رجوع</button>':''}</div>`;
  chrome(edit?'profile':'reg');
-}
-function getLoc(){
- if(!navigator.geolocation)return alert('جهازك لا يدعم تحديد الموقع، اكتب العنوان بالتفصيل');
- const ok=p=>{tmpLoc={lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6)};$('lc').innerHTML=`✅ تم تحديد موقعك · <a href="${mapUrl(tmpLoc)}" target="_blank">عرض على الخريطة</a>`};
- const fail=e=>{
-  $('lc').innerHTML='<span style="color:#d33">لم يتم تحديد الموقع، يمكنك المتابعة بكتابة العنوان</span>';
-  alert(e&&e.code===1?'تم رفض إذن الموقع.\n\nلتفعيله: اضغط ⋮ في كروم ← الإعدادات ← إعدادات الموقع ← الموقع ← اسمح لهذا الموقع.\nوتأكد أن إذن الموقع مفعّل لتطبيق كروم من إعدادات الهاتف ← التطبيقات ← كروم ← الأذونات.\n\nثم أعد المحاولة.':e&&e.code===2?'الموقع غير متاح الآن. فعّل خدمة الموقع (GPS) من شريط الإشعارات في هاتفك ثم أعد المحاولة.':'انتهت مهلة تحديد الموقع. جرّب في مكان مفتوح أو أعد المحاولة، أو اكتب العنوان بالتفصيل.');
- };
- $('lc').textContent='⏳ جاري تحديد الموقع...';
- navigator.geolocation.getCurrentPosition(ok,e=>{
-  if(e&&e.code===1)return fail(e);
-  navigator.geolocation.getCurrentPosition(ok,fail,{enableHighAccuracy:false,timeout:20000,maximumAge:600000});
- },{enableHighAccuracy:true,timeout:10000});
 }
 function saveReg(edit){
  const n=$('rn').value.trim(),age=$('ra').value.trim(),t=$('rp').value.trim(),a=$('rd').value.trim();
@@ -236,7 +222,7 @@ function saveReg(edit){
  if(!(+age>=5&&+age<=120))return alert('اكتب عمرك بشكل صحيح');
  if(t.replace(/\D/g,'').length<8)return alert('اكتب رقم هاتف صحيح');
  if(!a)return alert('اكتب عنوانك');
- localStorage.setItem('zuser',JSON.stringify({n,age,t,a,loc:tmpLoc}));
+ localStorage.setItem('zuser',JSON.stringify({n,age,t,a,loc:null}));
  localStorage.setItem('zinfo',JSON.stringify({n,t,a}));draft={};
  go('');
 }
@@ -270,7 +256,7 @@ function cartPage(){
  pshow();chrome('cart');
 }
 const ex=()=>{const u=L('zuser',{});return u.age?`\n🎂 العمر: ${u.age}`:''};
-const mp=()=>{const u=L('zuser',{});return u.loc?`\n🗺️ موقعي على الخريطة: ${mapUrl(u.loc)}`:''};
+const mp=()=>'';
 const VER='v6';
 let pend=[];
 const waHref=(num,text)=>{const e=encodeURIComponent(text);return /Android|iPhone|iPad/i.test(navigator.userAgent)?`whatsapp://send?phone=${num}&text=${e}`:`https://wa.me/${num}?text=${e}`};
