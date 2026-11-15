@@ -91,7 +91,7 @@ const firebaseConfig = {
 const WHATSAPP = "963934845767";
 // ===============================================
 let auth=null,db=null,err=false;
-try{firebase.initializeApp(firebaseConfig);auth=firebase.auth();db=firebase.firestore()}catch(e){console.error(e);err=true}
+try{firebase.initializeApp(firebaseConfig);auth=firebase.auth();db=firebase.firestore();try{db.settings({experimentalForceLongPolling:true,merge:true})}catch(e){}}catch(e){console.error(e);err=true}
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ph="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23e5e5ea%22 width=%22100%22 height=%22100%22/%3E%3C/svg%3E";
@@ -113,7 +113,7 @@ async function load(){
 function add(id,d){
  const p=P.find(x=>x.id===id);if(!p)return;
  const r=R.find(x=>x.id===p.rid);
- const it=cart[id]||{name:p.name,price:+p.price,qty:0,rest:r?r.name:''};
+ const it=cart[id]||{name:p.name,price:+p.price,qty:0,rest:r?r.name:'',rid:p.rid,wa:r?r.wa||'':''};
  it.qty+=d;if(it.qty<=0)delete cart[id];else cart[id]=it;
  saveC();route(true);
 }
@@ -153,7 +153,7 @@ function home(){
  <div class="chips">${cats.map((c,i)=>`<div class="chip ${c===cat?'on':''}" onclick="setCat(${i})">${esc(c)}</div>`).join('')}</div>
  ${O.length?`<div class="car">${O.map(o=>`<div class="bn" ${o.rid?`onclick="go('r=${o.rid}')"`:''}>${o.img?`<img ${im(o.img)}>`:''}<div><b>${esc(o.title)}</b>${esc(o.text)}</div></div>`).join('')}</div>`:''}
  <div class="w">${last?`<div class="reo"><div><b>اطلب مجدداً 🔁</b><br><small style="color:var(--g)">${last.total} ل.س · ${new Date(last.date).toLocaleDateString('ar')}</small></div><button class="btn s" onclick="reorder(0)">إعادة الطلب</button></div>`:''}
- <h2>🔥 المطاعم</h2>${list.map(rcard).join('')||(err?'<p style="color:#d33">تعذر تحميل البيانات. تأكد من إعدادات Firebase وقواعد Firestore.</p>':'<p style="color:var(--g)">لا توجد مطاعم بعد. أضفها من لوحة التحكم #admin</p>')}</div>`;
+ <h2>🔥 المطاعم</h2>${list.map(rcard).join('')||(err?'<p style="color:#d33">تعذر تحميل البيانات. تأكد من الإنترنت (وأطفئ VPN إن وُجد).</p><button class="btn" onclick="retry()">🔄 إعادة المحاولة</button>':'<p style="color:var(--g)">لا توجد مطاعم بعد. أضفها من لوحة التحكم #admin</p>')}</div>`;
  chrome('home');
 }
 function search(){
@@ -185,18 +185,22 @@ function cartPage(){
  <button class="btn" onclick="send()">إرسال الطلب عبر واتساب ✅</button></div>`;
  chrome('cart');
 }
+function waNum(n){let d=String(n||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='963'+d.slice(1);return d||WHATSAPP}
 function send(){
  const n=$('n').value.trim(),t=$('t').value.trim(),a=$('a').value.trim(),o=$('o').value.trim();
  if(!n||!t||!a)return alert('الرجاء إدخال الاسم والهاتف والعنوان');
  localStorage.setItem('zinfo',JSON.stringify({n,t,a}));
- const by={};Object.values(cart).forEach(i=>(by[i.rest]=by[i.rest]||[]).push(i));
- let m='🛍️ *طلب جديد - zainorder*\n';
- for(const r in by){m+=`\n🍽️ *${r}*\n`;by[r].forEach(i=>m+=`• ${i.name} × ${i.qty} = ${i.qty*i.price}\n`)}
- m+=`\n💰 *المجموع: ${tot()} ل.س*\n\n👤 ${n}\n📞 ${t}\n📍 ${a}`+(o?`\n📝 ${o}`:'');
+ const by={};Object.values(cart).forEach(i=>{const k=i.rid||i.rest;(by[k]=by[k]||{rest:i.rest,wa:i.wa,items:[]}).items.push(i)});
+ const links=Object.values(by).map(g=>{
+  const sub=g.items.reduce((s,i)=>s+i.qty*i.price,0);
+  const m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${g.rest}*\n`+g.items.map(i=>`• ${i.name} × ${i.qty} = ${i.qty*i.price}`).join('\n')+`\n\n💰 *المجموع: ${sub} ل.س*\n\n👤 ${n}\n📞 ${t}\n📍 ${a}`+(o?`\n📝 ${o}`:'');
+  return {rest:g.rest,url:`https://wa.me/${waNum(g.wa)}?text=${encodeURIComponent(m)}`};
+ });
  const h=L('zhist',[]);h.unshift({date:Date.now(),total:tot(),cart});localStorage.setItem('zhist',JSON.stringify(h.slice(0,20)));
- const wu=`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(m)}`;
- cart={};saveC();go('orders');
- if(!window.open(wu,'_blank'))location.href=wu;
+ cart={};saveC();
+ if(links.length===1){go('orders');if(!window.open(links[0].url,'_blank'))location.href=links[0].url;return}
+ $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>📨 أرسل الطلبات</h2><p style="color:var(--g)">طلبك من أكثر من مطعم، اضغط كل زر ليُرسل طلب مطعمه على واتساب:</p>`+links.map(l=>`<a class="ct" style="margin:10px 0" target="_blank" href="${l.url}">💬 إرسال طلب ${esc(l.rest)}</a>`).join('')+`<button class="btn" style="margin-top:14px" onclick="go('orders')">تم ✅</button></div>`;
+ chrome('cart');
 }
 function orders(){
  const h=L('zhist',[]);
@@ -207,7 +211,7 @@ function reorder(i){const o=L('zhist',[])[i];if(!o)return;cart=o.cart;saveC();go
 
 // ===== لوحة التحكم =====
 const F={
- restaurants:{t:'مطعم',f:[['name','اسم المطعم'],['cat','التصنيف (مطاعم، سوبر ماركت، حلويات...)'],['desc','نوع الأكل (فروج، شاورما)'],['img','رابط صورة الغلاف'],['logo','رابط الشعار'],['time','مدة التوصيل مثل 20-35'],['fee','أجور التوصيل'],['rating','التقييم مثل 4.5']]},
+ restaurants:{t:'مطعم',f:[['name','اسم المطعم'],['cat','التصنيف (مطاعم، سوبر ماركت، حلويات...)'],['desc','نوع الأكل (فروج، شاورما)'],['img','رابط صورة الغلاف'],['logo','رابط الشعار'],['time','مدة التوصيل مثل 20-35'],['fee','أجور التوصيل'],['wa','رقم واتساب المطعم (مثل 0934845767)','tel'],['rating','التقييم مثل 4.5']]},
  products:{t:'منتج',f:[['rid','المطعم','sel'],['sec','القسم (وجبات، مشروبات...)'],['name','اسم المنتج'],['price','السعر','number'],['desc','وصف قصير'],['img','رابط الصورة']]},
  offers:{t:'عرض',f:[['title','عنوان العرض'],['text','تفاصيل'],['img','رابط صورة'],['rid','مطعم مرتبط (اختياري)','sel']]}
 };
@@ -239,10 +243,11 @@ async function del(c,id){if(!confirm('تأكيد الحذف؟'))return;if(c==='r
 async function tg(c,id,k,cur){await db.collection(c).doc(id).update({[k]:!cur});await load();admin()}
 
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+function retry(){err=false;route(true);Promise.race([load(),new Promise((_,j)=>setTimeout(()=>j('timeout'),25000))]).then(()=>route(true)).catch(e=>{console.error(e);err=true;route(true)})}
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h!==cur){prev=cur;cur=h;route()}});
 if(auth)auth.onAuthStateChanged(()=>{if(cur==='admin')route(true)});
 route();
-Promise.race([load(),new Promise((_,j)=>setTimeout(()=>j('timeout'),8000))]).then(()=>{if(cur==='admin'&&[...document.querySelectorAll('#app input,#app select')].some(i=>i.value))return;route(true)}).catch(e=>{console.error(e);err=true;route(true)});
+Promise.race([load(),new Promise((_,j)=>setTimeout(()=>j('timeout'),25000))]).then(()=>{if(cur==='admin'&&[...document.querySelectorAll('#app input,#app select')].some(i=>i.value))return;route(true)}).catch(e=>{console.error(e);err=true;route(true)});
 </script>
 </body>
 </html>
