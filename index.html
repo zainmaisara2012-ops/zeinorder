@@ -116,6 +116,7 @@ async function load(){
  [R,P,O]=await Promise.all([g('restaurants'),g('products'),g('offers')]);
 }
 function add(id,d){
+ if(cur==='cart'&&$('n'))saveDraft();
  const p=P.find(x=>x.id===id);if(!p)return;
  const r=R.find(x=>x.id===p.rid);
  const it=cart[id]||{name:p.name,price:+p.price,qty:0,rest:r?r.name:'',rid:p.rid,wa:r?r.wa||'':'',sham:r?r.sham||'':''};
@@ -237,8 +238,8 @@ function cartPage(){
  $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>🛒 سلتك</h2><div class="box">${it.map(([id,i])=>`<div class="row"><span><b>${esc(i.name)}</b><br><small style="color:var(--g)">${esc(i.rest)} · ${i.price} × ${i.qty}</small></span><div class="q"><button onclick="add('${id}',1)">+</button><button onclick="add('${id}',-1)">−</button></div></div>`).join('')}
  <div class="row"><span>المجموع</span><b>${tot()} ل.س</b></div>${d?`<div class="row"><span>الخصم 🎟️</span><b style="color:#d33">−${d} ل.س</b></div>`:''}<div class="row"><b>الإجمالي</b><b class="pc" style="font-size:20px">${tot()-d} ل.س</b></div></div>
  <div class="box"><b>🎟️ كود الخصم</b>${coupon?`<div class="row" style="border:0"><span><b>${esc(coupon.code)}</b> مُطبَّق</span><button onclick="rmCp()">✖ إلغاء</button></div>`:`<input id="cp" placeholder="اكتب الكود إن وُجد"><button class="btn s" style="width:100%;margin-top:4px" onclick="applyCp()">تطبيق الكود</button>`}</div>
- <div class="box"><b>💳 طريقة الدفع</b><label class="pay"><input type="radio" name="pay" value="cash" ${info.pay==='sham'?'':'checked'} onchange="pshow()">💵 كاش عند الاستلام</label><label class="pay"><input type="radio" name="pay" value="sham" ${info.pay==='sham'?'checked':''} onchange="pshow()">📱 شام كاش</label><div id="shi" style="display:none;margin-top:8px;font-size:14px;color:var(--g)">حوّل المبلغ إلى حساب شام كاش، ثم أرسل إيصال التحويل في واتساب:${sh}</div></div>
- <div class="box"><input id="n" placeholder="الاسم" value="${esc(info.n)}"><input id="t" type="tel" placeholder="رقم الهاتف" value="${esc(info.t)}"><input id="a" placeholder="العنوان بالتفصيل" value="${esc(info.a)}"><textarea id="o" rows="2" placeholder="ملاحظات">${esc(info.o)}</textarea></div>
+ <div class="box"><b>💳 طريقة الدفع</b><label class="pay"><input type="radio" name="pay" value="cash" ${info.pay==='sham'?'':'checked'} onchange="pshow();saveDraft()">💵 كاش عند الاستلام</label><label class="pay"><input type="radio" name="pay" value="sham" ${info.pay==='sham'?'checked':''} onchange="pshow();saveDraft()">📱 شام كاش</label><div id="shi" style="display:none;margin-top:8px;font-size:14px;color:var(--g)">حوّل المبلغ إلى حساب شام كاش، ثم أرسل إيصال التحويل في واتساب:${sh}</div></div>
+ <div class="box"><input id="n" oninput="saveDraft()" placeholder="الاسم" value="${esc(info.n)}"><input id="t" oninput="saveDraft()" type="tel" placeholder="رقم الهاتف" value="${esc(info.t)}"><input id="a" oninput="saveDraft()" placeholder="العنوان بالتفصيل" value="${esc(info.a)}"><textarea id="o" oninput="saveDraft()" rows="2" placeholder="ملاحظات">${esc(info.o)}</textarea></div>
  <button class="btn" onclick="send()">إرسال الطلب عبر واتساب ✅</button></div>`;
  pshow();chrome('cart');
 }
@@ -253,8 +254,11 @@ function quick(id){
  if(!window.open(u,'_blank'))location.href=u;
 }
 function send(){
- const n=$('n').value.trim(),t=$('t').value.trim(),a=$('a').value.trim(),o=$('o').value.trim();
- if(!n||!t||!a)return alert('الرجاء إدخال الاسم والهاتف والعنوان');
+ const Z={...L('zinfo',{}),...L('zuser',{})};
+ const n=$('n').value.trim()||Z.n||'',t=$('t').value.trim()||Z.t||'',a=$('a').value.trim()||Z.a||'',o=$('o').value.trim();
+ if(!n){$('n').focus();return alert('الرجاء كتابة الاسم')}
+ if(!t){$('t').focus();return alert('الرجاء كتابة رقم الهاتف')}
+ if(!a){$('a').focus();return alert('الرجاء كتابة العنوان')}
  const pay=(document.querySelector('input[name=pay]:checked')||{}).value||'cash';
  localStorage.setItem('zinfo',JSON.stringify({n,t,a}));
  const total=tot(),d=discAll();
