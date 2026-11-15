@@ -55,6 +55,10 @@ h2{font-size:20px;font-weight:800;margin:18px 0 10px}
 input[type=radio]{width:20px;height:20px;margin:0}
 .cats{display:flex;gap:14px;overflow-x:auto;padding:14px 14px 6px;scrollbar-width:none}.cats::-webkit-scrollbar{display:none}
 .ct2{flex:none;width:76px;text-align:center}.ct2 .ic{width:76px;height:76px;background:#fff;border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:38px;border:2.5px solid transparent;box-shadow:0 2px 8px #0001}.ct2 span{display:block;margin-top:6px;font-size:14px;font-weight:600}.ct2.on .ic{border-color:var(--c)}.ct2.on span{color:var(--c)}
+.nts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.nt{display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid #e5e5ea;border-radius:14px;font-weight:600;font-size:15px;background:#fff}
+.nt:has(input:checked){border-color:var(--c);background:#fff2e8;color:var(--c)}
+input[type=checkbox]{width:20px;height:20px;margin:0;accent-color:var(--c)}
 .bk{position:absolute;top:12px;right:12px;background:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:20px;box-shadow:0 2px 8px #0003}
 .rt{background:#fff;border-radius:24px 24px 0 0;margin-top:-22px;position:relative;padding:16px 14px 4px}
 input,select,textarea{width:100%;padding:12px;margin:5px 0;border:1px solid #ddd;border-radius:12px;font-size:16px;background:#fff}
@@ -141,7 +145,9 @@ function chrome(p){
  const showFl=O.length&&(p==='home'||p==='orders')&&!adm;
  $('fl').style.display=showFl?'flex':'none';
  if(showFl)$('flt').textContent=O[0].title;
- $('cb').style.bottom=`calc(${showFl?118:72}px + env(safe-area-inset-bottom,0px))`;
+ const nh=$('nav').offsetHeight||0;
+ $('fl').style.bottom=nh+'px';
+ $('cb').style.bottom=(nh+(showFl?58:0)+12)+'px';
 }
 setInterval(()=>{const n=new Date(),e=new Date(n);e.setHours(23,59,59,999);const s=Math.max(0,Math.floor((e-n)/1000));
  $('fltm').textContent=[s/3600|0,(s/60|0)%60,s%60].map(x=>String(x).padStart(2,'0')).join(':')},1000);
@@ -176,11 +182,13 @@ function search(){
  $('app').innerHTML=`<div class="w" style="padding-top:16px"><input id="sq" placeholder="🔍 ابحث عن مطعم أو وجبة" value="${esc(q)}" oninput="q=this.value;sres()"><div id="sr"></div></div>`;
  chrome('search');sres();$('sq').focus();
 }
+const norm=x=>String(x||'').toLowerCase().replace(/[\u064B-\u0652\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي');
+const hit=(txt,t)=>{txt=norm(txt);return t.length>=3?txt.includes(t):txt.split(/\s+/).some(w=>w.startsWith(t))};
 function sres(){
- const t=q.trim().toLowerCase();
+ const t=norm(q.trim());
  if(!t){$('sr').innerHTML='<p style="color:var(--g);text-align:center;margin-top:30px">اكتب للبحث</p>';return}
- const rs=R.filter(r=>[r.name,r.cat,r.desc].join(' ').toLowerCase().includes(t));
- const ps=P.filter(p=>p.name.toLowerCase().includes(t));
+ const rs=R.filter(r=>hit([r.name,r.desc,t.length>=3?r.cat:''].join(' '),t));
+ const ps=P.filter(p=>hit([p.name,p.desc].join(' '),t));
  $('sr').innerHTML=(rs.length?'<h2>المطاعم</h2>'+rs.map(rcard).join(''):'')+(ps.length?'<h2>الوجبات</h2>'+ps.map(p=>{const r=R.find(x=>x.id===p.rid)||{};return `<div class="pr" onclick="go('r=${p.rid}')"><img ${im(p.img)}><div class="i"><b>${esc(p.name)}</b><br><small>${esc(r.name)}</small><br><span class="pc">${esc(p.price)} ل.س</span></div></div>`}).join(''):'')||'<p style="text-align:center">لا نتائج</p>';
 }
 function rest(id){
@@ -193,6 +201,7 @@ function rest(id){
   return `<div class="pr ${ok?'':'off'}"><img ${im(p.img)}><div class="i"><b>${esc(p.name)}</b><br><small>${esc(p.desc)}</small><br><span class="pc">${esc(p.price)} ل.س</span></div>`+'<div style="display:flex;flex-direction:column;gap:6px;align-items:center">'+(!ok?'<small>غير متوفر</small>':n?`<div class="q"><button onclick="add('${p.id}',1)">+</button><b>${n}</b><button class="mn" onclick="add('${p.id}',-1)">−</button></div>`:`<button class="btn s" onclick="add('${p.id}',1)">+ أضف</button>`)+(ok?`<button class="q2" onclick="quick('${p.id}')">💬 اطلب الآن</button>`:'')+'</div>'}).join('')).join('')||'<p>لا توجد منتجات.</p>'}</div></div>`;
  chrome('rest');
 }
+const NOTES=['🚪 لا تطرق الباب','📦 ضع الطلب عند الباب','📞 اتصل بي عند الوصول','🔕 لا ترن الجرس'];
 const feeTotal=()=>{const m={};Object.values(cart).forEach(i=>{m[i.rid||i.rest]=+i.fee||0});return Object.values(m).reduce((a,b)=>a+b,0)};
 const discAll=()=>{const t=tot();if(!coupon||!t)return 0;const v=+coupon.value||0;return coupon.type==='percent'?Math.round(t*Math.min(100,v)/100):Math.min(t,Math.round(v))};
 let tmpLoc=null;
@@ -226,7 +235,7 @@ function saveReg(edit){
  localStorage.setItem('zinfo',JSON.stringify({n,t,a}));draft={};
  go('');
 }
-function saveDraft(){draft={n:$('n').value,t:$('t').value,a:$('a').value,o:$('o').value,pay:(document.querySelector('input[name=pay]:checked')||{}).value||'cash'}}
+function saveDraft(){draft={n:$('n').value,t:$('t').value,a:$('a').value,o:$('o').value,pay:(document.querySelector('input[name=pay]:checked')||{}).value||'cash',nt:[...document.querySelectorAll('input[name=nt]:checked')].map(x=>x.value)}}
 function pshow(){const e=document.querySelector('input[name=pay]:checked');if(e)$('shi').style.display=e.value==='sham'?'block':'none'}
 async function applyCp(){
  const code=($('cp').value||'').trim().toUpperCase().replace(/\s/g,'');
@@ -251,7 +260,8 @@ function cartPage(){
  <div class="row"><span>سعر المنتجات</span><b>${tot()} ل.س</b></div>${f?`<div class="row"><span>🛵 أجور التوصيل</span><b>${f} ل.س</b></div>`:''}${d?`<div class="row"><span>🎟️ الحسم</span><b style="color:#d33">−${d} ل.س</b></div>`:''}<div class="row"><b>المبلغ الكلي</b><b class="pc" style="font-size:20px">${tot()-d+f} ل.س</b></div></div>
  <div class="box"><b>🎟️ كود الخصم</b>${coupon?`<div class="row" style="border:0"><span><b>${esc(coupon.code)}</b> مُطبَّق</span><button onclick="rmCp()">✖ إلغاء</button></div>`:`<input id="cp" placeholder="اكتب الكود إن وُجد"><button class="btn s" style="width:100%;margin-top:4px" onclick="applyCp()">تطبيق الكود</button>`}</div>
  <div class="box"><b>💳 طريقة الدفع</b><label class="pay"><input type="radio" name="pay" value="cash" ${info.pay==='sham'?'':'checked'} onchange="pshow();saveDraft()">💵 كاش عند الاستلام</label><label class="pay"><input type="radio" name="pay" value="sham" ${info.pay==='sham'?'checked':''} onchange="pshow();saveDraft()">📱 شام كاش</label><div id="shi" style="display:none;margin-top:8px;font-size:14px;color:var(--g)">حوّل المبلغ إلى حساب شام كاش، ثم أرسل إيصال التحويل في واتساب:${sh}</div></div>
- <div class="box"><input id="n" oninput="saveDraft()" placeholder="الاسم" value="${esc(info.n)}"><input id="t" oninput="saveDraft()" type="tel" placeholder="رقم الهاتف" value="${esc(info.t)}"><input id="a" oninput="saveDraft()" placeholder="العنوان بالتفصيل" value="${esc(info.a)}"><textarea id="o" oninput="saveDraft()" rows="2" placeholder="ملاحظات">${esc(info.o)}</textarea></div>
+ <div class="box"><b>🚪 ملاحظات التوصيل</b><div class="nts">${NOTES.map(x=>`<label class="nt"><input type="checkbox" name="nt" value="${x}" ${(info.nt||[]).includes(x)?'checked':''} onchange="saveDraft()">${x}</label>`).join('')}</div></div>
+ <div class="box"><input id="n" oninput="saveDraft()" placeholder="الاسم" value="${esc(info.n)}"><input id="t" oninput="saveDraft()" type="tel" placeholder="رقم الهاتف" value="${esc(info.t)}"><input id="a" oninput="saveDraft()" placeholder="العنوان بالتفصيل" value="${esc(info.a)}"><textarea id="o" oninput="saveDraft()" rows="2" placeholder="ملاحظات أخرى (اختياري)">${esc(info.o)}</textarea></div>
  <button class="btn" onclick="send()">إرسال الطلب عبر واتساب ✅</button></div>`;
  pshow();chrome('cart');
 }
@@ -285,6 +295,7 @@ function send(){
  if(!t){$('t').focus();return alert('الرجاء كتابة رقم الهاتف')}
  if(!a){$('a').focus();return alert('الرجاء كتابة العنوان')}
  const pay=(document.querySelector('input[name=pay]:checked')||{}).value||'cash';
+ const nts=[...document.querySelectorAll('input[name=nt]:checked')].map(x=>x.value);
  localStorage.setItem('zinfo',JSON.stringify({n,t,a}));
  const total=tot(),d=discAll();
  const by={};Object.values(cart).forEach(i=>{const k=i.rid||i.rest;(by[k]=by[k]||{rest:i.rest,wa:i.wa,sham:i.sham,fee:+i.fee||0,items:[]}).items.push(i)});
@@ -296,7 +307,7 @@ function send(){
   if(g.fee)m+=`\n🛵 أجور التوصيل: ${g.fee} ل.س`;
   m+=`\n✅ *المبلغ الكلي: ${sub-dg+(+g.fee||0)} ل.س*\n\n💳 *طريقة الدفع: ${pay==='sham'?'شام كاش':'كاش عند الاستلام'}*`;
   if(pay==='sham')m+=(g.sham?`\n📱 حساب شام كاش: ${g.sham}`:'')+`\n⚠️ سأرسل إيصال التحويل هنا`;
-  m+=`\n\n👤 ${n}${ex()}\n📞 ${t}\n📍 ${a}${mp()}`+(o?`\n📝 ${o}`:'');
+  m+=`\n\n👤 ${n}${ex()}\n📞 ${t}\n📍 ${a}${mp()}`+(nts.length?`\n🚪 تعليمات التوصيل: ${nts.join('، ')}`:'')+(o?`\n📝 ${o}`:'');
   return {rest:g.rest,num:waNum(g.wa),text:m};
  });
  const h=L('zhist',[]);h.unshift({date:Date.now(),total:total-d+feeTotal(),cart});localStorage.setItem('zhist',JSON.stringify(h.slice(0,20)));
