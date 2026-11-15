@@ -52,6 +52,8 @@ h2{font-size:20px;font-weight:800;margin:18px 0 10px}
 .up{display:block;text-align:center;background:#e8f7ee;color:#128c4a;border:2px dashed #25d366;border-radius:12px;padding:10px;margin:5px 0;font-weight:700}
 .pay{display:flex;align-items:center;gap:10px;padding:12px;border:2px solid #eee;border-radius:12px;margin:6px 0;font-weight:600}
 input[type=radio]{width:20px;height:20px;margin:0}
+.cats{display:flex;gap:14px;overflow-x:auto;padding:14px 14px 6px;scrollbar-width:none}.cats::-webkit-scrollbar{display:none}
+.ct2{flex:none;width:76px;text-align:center}.ct2 .ic{width:76px;height:76px;background:#fff;border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:38px;border:2.5px solid transparent;box-shadow:0 2px 8px #0001}.ct2 span{display:block;margin-top:6px;font-size:14px;font-weight:600}.ct2.on .ic{border-color:var(--c)}.ct2.on span{color:var(--c)}
 .bk{position:absolute;top:12px;right:12px;background:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:20px;box-shadow:0 2px 8px #0003}
 .rt{background:#fff;border-radius:24px 24px 0 0;margin-top:-22px;position:relative;padding:16px 14px 4px}
 input,select,textarea{width:100%;padding:12px;margin:5px 0;border:1px solid #ddd;border-radius:12px;font-size:16px;background:#fff}
@@ -76,12 +78,13 @@ input,select,textarea{width:100%;padding:12px;margin:5px 0;border:1px solid #ddd
  <a href="#search" onclick="go('search');return false" data-p="search"><i>🔍</i>البحث</a>
  <a href="#orders" onclick="go('orders');return false" data-p="orders"><i>🧾</i>طلباتي</a>
  <a href="#cart" onclick="go('cart');return false" data-p="cart"><i>🛒</i>السلة <span id="nc"></span></a>
- <a href="#" id="nct" target="_blank"><i>💬</i>الإدارة</a>
+ <a href="#" id="nct"><i>💬</i>الإدارة</a>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script>
 // ====== ضع إعدادات Firebase الخاصة بك هنا ======
 const firebaseConfig = {
@@ -93,9 +96,12 @@ const firebaseConfig = {
   appId: "1:413824150655:web:1f310da38b071f6146a34a"
 };
 const WHATSAPP = "963934845767";
+const VAPID = "PASTE_VAPID_KEY_HERE";
 // ===============================================
 let auth=null,db=null,err=false;
 try{firebase.initializeApp(firebaseConfig);auth=firebase.auth();db=firebase.firestore();try{db.settings({experimentalForceLongPolling:true,merge:true})}catch(e){}}catch(e){console.error(e);err=true}
+let msg=null;
+try{if(firebase.messaging&&firebase.messaging.isSupported())msg=firebase.messaging()}catch(e){console.warn(e)}
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ph="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23e5e5ea%22 width=%22100%22 height=%22100%22/%3E%3C/svg%3E";
@@ -103,12 +109,13 @@ const im=u=>`src="${esc(u)||ph}" onerror="this.onerror=null;this.src='${ph}'" lo
 const L=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 let R=[],P=[],O=[],Cp=[],cpOk=false,coupon=L('zcoup',null),draft={},cats=[],cart=L('zcart',{}),cat='الكل',q='',prev='';
 const setCat=i=>{cat=cats[i];home()};
+function catIcon(c){const m=[[/الكل/,'🛍️'],[/جديد/,'✨'],[/سوبر|ماركت|بقال/,'🛒'],[/حلو|كيك|تورت/,'🍰'],[/مشروب|عصير|مثلج/,'🥤'],[/قهو|مقه|كافي/,'☕'],[/بيتزا/,'🍕'],[/شاورما|ساندويش|سندويش/,'🌯'],[/فروج|دجاج|بروست/,'🍗'],[/برغر|برجر/,'🍔'],[/مخبز|معجنات|فطائر|مناقيش/,'🥐'],[/صيدل|دواء/,'💊'],[/خضار|فواكه/,'🥬'],[/مطعم|مطاعم|أكل|وجبات/,'🍔']];for(const [r,i] of m)if(r.test(c))return i;return '🍽️'}
 const saveC=()=>localStorage.setItem('zcart',JSON.stringify(cart));
 const cnt=()=>Object.values(cart).reduce((a,i)=>a+i.qty,0);
 const tot=()=>Object.values(cart).reduce((a,i)=>a+i.qty*i.price,0);
 let cur=location.hash.slice(1);
 const go=h=>{prev=cur;cur=h;try{location.hash=h}catch(e){}route()};
-$('nct').href=`https://wa.me/${WHATSAPP}?text=${encodeURIComponent('مرحباً، أريد التواصل مع إدارة zainorder')}`;
+$('nct').onclick=e=>{e.preventDefault();openWa(waUrl(waNum(WHATSAPP),'مرحباً، أريد التواصل مع إدارة zainorder'))};
 
 async function load(){
  cpOk=false;
@@ -119,7 +126,7 @@ function add(id,d){
  if(cur==='cart'&&$('n'))saveDraft();
  const p=P.find(x=>x.id===id);if(!p)return;
  const r=R.find(x=>x.id===p.rid);
- const it=cart[id]||{name:p.name,price:+p.price,qty:0,rest:r?r.name:'',rid:p.rid,wa:r?r.wa||'':'',sham:r?r.sham||'':''};
+ const it=cart[id]||{name:p.name,price:+p.price,qty:0,rest:r?r.name:'',rid:p.rid,wa:r?r.wa||'':'',sham:r?r.sham||'':'',fee:+String(r&&r.fee||'').replace(/[^\d.]/g,'')||0};
  it.qty+=d;if(it.qty<=0)delete cart[id];else cart[id]=it;
  saveC();route(true);
 }
@@ -157,8 +164,8 @@ function home(){
  cats=['الكل',...new Set(R.map(r=>r.cat).filter(Boolean))];if(!cats.includes(cat))cat='الكل';
  const last=L('zhist',[])[0];
  const list=R.filter(r=>cat==='الكل'||r.cat===cat);
- $('app').innerHTML=`<div class="top"><div class="w"><div class="hi"><span onclick="go('profile')" style="float:left;font-size:26px">👤</span>أهلاً ${esc((L('zuser',{}).n||'').split(' ')[0])} 👋<small>ماذا تريد أن تطلب اليوم؟</small></div><div class="sb" onclick="go('search')">🔍 ابحث عن مطعم أو وجبة...</div></div></div>
- <div class="chips">${cats.map((c,i)=>`<div class="chip ${c===cat?'on':''}" onclick="setCat(${i})">${esc(c)}</div>`).join('')}</div>
+ $('app').innerHTML=`<div class="top"><div class="w"><div class="hi"><span onclick="go('profile')" style="float:left;font-size:26px">👤</span>أهلاً ${esc((L('zuser',{}).n||'').split(' ')[0])} 👋<small>${L('zuser',{}).a?'📍 '+esc(L('zuser',{}).a):'ماذا تريد أن تطلب اليوم؟'}</small></div><div class="sb" onclick="go('search')">🔍 ابحث عن مطعم أو وجبة...</div></div></div>
+ <div class="cats">${cats.map((c,i)=>`<div class="ct2 ${c===cat?'on':''}" onclick="setCat(${i})"><div class="ic">${catIcon(c)}</div><span>${esc(c)}</span></div>`).join('')}</div>${notifCard()}
  ${O.length?`<div class="car">${O.map(o=>`<div class="bn" ${o.rid?`onclick="go('r=${o.rid}')"`:''}>${o.img?`<img ${im(o.img)}>`:''}<div><b>${esc(o.title)}</b>${esc(o.text)}</div></div>`).join('')}</div>`:''}
  <div class="w">${last?`<div class="reo"><div><b>اطلب مجدداً 🔁</b><br><small style="color:var(--g)">${last.total} ل.س · ${new Date(last.date).toLocaleDateString('ar')}</small></div><button class="btn s" onclick="reorder(0)">إعادة الطلب</button></div>`:''}
  <h2>🔥 المطاعم</h2>${list.map(rcard).join('')||(err?'<p style="color:#d33">تعذر تحميل البيانات. تأكد من الإنترنت (وأطفئ VPN إن وُجد).</p><button class="btn" onclick="retry()">🔄 إعادة المحاولة</button>':'<p style="color:var(--g)">لا توجد مطاعم بعد. أضفها من لوحة التحكم #admin</p>')}</div>`;
@@ -185,9 +192,22 @@ function rest(id){
   return `<div class="pr ${ok?'':'off'}"><img ${im(p.img)}><div class="i"><b>${esc(p.name)}</b><br><small>${esc(p.desc)}</small><br><span class="pc">${esc(p.price)} ل.س</span></div>`+'<div style="display:flex;flex-direction:column;gap:6px;align-items:center">'+(!ok?'<small>غير متوفر</small>':n?`<div class="q"><button onclick="add('${p.id}',1)">+</button><b>${n}</b><button onclick="add('${p.id}',-1)">−</button></div>`:`<button class="btn s" onclick="add('${p.id}',1)">+ أضف</button>`)+(ok?`<button class="q2" onclick="quick('${p.id}')">💬 اطلب الآن</button>`:'')+'</div>'}).join('')).join('')||'<p>لا توجد منتجات.</p>'}</div></div>`;
  chrome('rest');
 }
+const feeTotal=()=>{const m={};Object.values(cart).forEach(i=>{m[i.rid||i.rest]=+i.fee||0});return Object.values(m).reduce((a,b)=>a+b,0)};
 const discAll=()=>{const t=tot();if(!coupon||!t)return 0;const v=+coupon.value||0;return coupon.type==='percent'?Math.round(t*Math.min(100,v)/100):Math.min(t,Math.round(v))};
 let tmpLoc=null;
 const mapUrl=l=>`https://www.google.com/maps?q=${l.lat},${l.lng}`;
+async function enableNotif(){
+ try{
+  if(!msg||!('Notification' in window))return alert('جهازك لا يدعم الإشعارات. على الآيفون ثبّت التطبيق من Safari أولاً');
+  const p=await Notification.requestPermission();
+  if(p!=='granted')return alert('لم يتم السماح بالإشعارات');
+  const rg=await navigator.serviceWorker.register('sw.js');await navigator.serviceWorker.ready;
+  const tk=await msg.getToken({vapidKey:VAPID,serviceWorkerRegistration:rg});
+  if(tk){localStorage.setItem('zpush','1');alert('✅ تم تفعيل الإشعارات');route(true)}
+ }catch(e){console.error(e);alert('تعذر تفعيل الإشعارات')}
+}
+if(msg)try{msg.onMessage(async p=>{const n=p.notification||{};const rg=await navigator.serviceWorker.getRegistration();if(rg)rg.showNotification(n.title||'zainorder',{body:n.body||'',icon:'icon-192.png'})})}catch(e){}
+const notifCard=()=>(msg&&!/^PASTE/.test(VAPID)&&typeof Notification!=='undefined'&&Notification.permission==='default')?`<div class="w"><div class="reo" style="margin-top:6px"><div><b>🔔 الإشعارات</b><br><small style="color:var(--g)">فعّلها لتصلك العروض والخصومات</small></div><button class="btn s" onclick="enableNotif()">تفعيل</button></div></div>`:'';
 function reg(edit){
  const u=L('zuser',{});tmpLoc=u.loc||null;
  $('app').innerHTML=`<div class="w" style="padding-top:30px"><div style="text-align:center;font-size:52px">🍔</div><h2 style="text-align:center;margin-top:4px">${edit?'بياناتي':'أهلاً بك في zainorder'}</h2><p style="text-align:center;color:var(--g);margin-bottom:12px">${edit?'عدّل بياناتك ثم احفظ':'سجّل بياناتك مرة واحدة ليصلك طلبك بسرعة'}</p>
@@ -233,10 +253,10 @@ function rmCp(){saveDraft();coupon=null;localStorage.removeItem('zcoup');cartPag
 function cartPage(){
  const it=Object.entries(cart),info={...L('zinfo',{}),...draft};
  if(!it.length){$('app').innerHTML='<div class="w" style="padding-top:40px;text-align:center"><h2>🛒 السلة فارغة</h2><button class="btn" onclick="go(\'\')">تصفح المطاعم</button></div>';return chrome('cart')}
- const d=discAll(),shams={};Object.values(cart).forEach(i=>{if(i.sham)shams[i.rest]=i.sham});
+ const d=discAll(),f=feeTotal(),shams={};Object.values(cart).forEach(i=>{if(i.sham)shams[i.rest]=i.sham});
  const sh=Object.entries(shams).map(([r,x])=>`<div>🍽️ ${esc(r)}: <b>${esc(x)}</b></div>`).join('')||'<div>سيصلك رقم الحساب من المطعم على واتساب.</div>';
- $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>🛒 سلتك</h2><div class="box">${it.map(([id,i])=>`<div class="row"><span><b>${esc(i.name)}</b><br><small style="color:var(--g)">${esc(i.rest)} · ${i.price} × ${i.qty}</small></span><div class="q"><button onclick="add('${id}',1)">+</button><button onclick="add('${id}',-1)">−</button></div></div>`).join('')}
- <div class="row"><span>المجموع</span><b>${tot()} ل.س</b></div>${d?`<div class="row"><span>الخصم 🎟️</span><b style="color:#d33">−${d} ل.س</b></div>`:''}<div class="row"><b>الإجمالي</b><b class="pc" style="font-size:20px">${tot()-d} ل.س</b></div></div>
+ $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>🛒 سلتك</h2><div class="box">${it.map(([id,i])=>`<div class="row"><span><b>${esc(i.name)}</b><br><small style="color:var(--g)">${esc(i.rest)} · ${i.price} × ${i.qty} = ${i.price*i.qty}</small></span><div class="q"><button onclick="add('${id}',1)">+</button><button onclick="add('${id}',-1)">−</button></div></div>`).join('')}
+ <div class="row"><span>سعر المنتجات</span><b>${tot()} ل.س</b></div>${f?`<div class="row"><span>🛵 أجور التوصيل</span><b>${f} ل.س</b></div>`:''}${d?`<div class="row"><span>🎟️ الحسم</span><b style="color:#d33">−${d} ل.س</b></div>`:''}<div class="row"><b>المبلغ الكلي</b><b class="pc" style="font-size:20px">${tot()-d+f} ل.س</b></div></div>
  <div class="box"><b>🎟️ كود الخصم</b>${coupon?`<div class="row" style="border:0"><span><b>${esc(coupon.code)}</b> مُطبَّق</span><button onclick="rmCp()">✖ إلغاء</button></div>`:`<input id="cp" placeholder="اكتب الكود إن وُجد"><button class="btn s" style="width:100%;margin-top:4px" onclick="applyCp()">تطبيق الكود</button>`}</div>
  <div class="box"><b>💳 طريقة الدفع</b><label class="pay"><input type="radio" name="pay" value="cash" ${info.pay==='sham'?'':'checked'} onchange="pshow();saveDraft()">💵 كاش عند الاستلام</label><label class="pay"><input type="radio" name="pay" value="sham" ${info.pay==='sham'?'checked':''} onchange="pshow();saveDraft()">📱 شام كاش</label><div id="shi" style="display:none;margin-top:8px;font-size:14px;color:var(--g)">حوّل المبلغ إلى حساب شام كاش، ثم أرسل إيصال التحويل في واتساب:${sh}</div></div>
  <div class="box"><input id="n" oninput="saveDraft()" placeholder="الاسم" value="${esc(info.n)}"><input id="t" oninput="saveDraft()" type="tel" placeholder="رقم الهاتف" value="${esc(info.t)}"><input id="a" oninput="saveDraft()" placeholder="العنوان بالتفصيل" value="${esc(info.a)}"><textarea id="o" oninput="saveDraft()" rows="2" placeholder="ملاحظات">${esc(info.o)}</textarea></div>
@@ -245,13 +265,22 @@ function cartPage(){
 }
 const ex=()=>{const u=L('zuser',{});return u.age?`\n🎂 العمر: ${u.age}`:''};
 const mp=()=>{const u=L('zuser',{});return u.loc?`\n🗺️ موقعي على الخريطة: ${mapUrl(u.loc)}`:''};
+const IS_APP=()=>((window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true)&&/Android|iPhone|iPad/i.test(navigator.userAgent);
+const waUrl=(num,text)=>IS_APP()?`whatsapp://send?phone=${num}&text=${encodeURIComponent(text)}`:`https://wa.me/${num}?text=${encodeURIComponent(text)}`;
+let pend=[];
+function openWa(u){
+ if(u.startsWith('whatsapp:')){
+  location.href=u;
+  const t=setTimeout(()=>{if(!document.hidden)alert('تعذر فتح واتساب، تأكد أنه مثبّت على هاتفك')},2500);
+  document.addEventListener('visibilitychange',()=>clearTimeout(t),{once:true});
+ }else if(!window.open(u,'_blank'))location.href=u;
+}
 function waNum(n){let d=String(n||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='963'+d.slice(1);return d||WHATSAPP}
 function quick(id){
  const p=P.find(x=>x.id===id);if(!p)return;
- const r=R.find(x=>x.id===p.rid)||{},i=L('zinfo',{});
- const m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${r.name||''}*\n• ${p.name} × 1 = ${p.price}\n\n💰 *المجموع: ${p.price} ل.س*\n💳 طريقة الدفع (كاش / شام كاش): \n\n👤 ${i.n||'الاسم: '}${ex()}\n📞 ${i.t||'الهاتف: '}\n📍 ${i.a||'العنوان: '}${mp()}`;
- const u=`https://wa.me/${waNum(r.wa)}?text=${encodeURIComponent(m)}`;
- if(!window.open(u,'_blank'))location.href=u;
+ const r=R.find(x=>x.id===p.rid)||{},i=L('zinfo',{}),f=+String(r.fee||'').replace(/[^\d.]/g,'')||0;
+ const m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${r.name||''}*\n• ${p.name} × 1 = ${p.price}\n\n💰 سعر المنتج: ${p.price} ل.س${f?`\n🛵 أجور التوصيل: ${f} ل.س`:''}\n✅ *المبلغ الكلي: ${+p.price+f} ل.س*\n💳 طريقة الدفع (كاش / شام كاش): \n\n👤 ${i.n||'الاسم: '}${ex()}\n📞 ${i.t||'الهاتف: '}\n📍 ${i.a||'العنوان: '}${mp()}`;
+ openWa(waUrl(waNum(r.wa),m));
 }
 function send(){
  const Z={...L('zinfo',{}),...L('zuser',{})};
@@ -262,21 +291,22 @@ function send(){
  const pay=(document.querySelector('input[name=pay]:checked')||{}).value||'cash';
  localStorage.setItem('zinfo',JSON.stringify({n,t,a}));
  const total=tot(),d=discAll();
- const by={};Object.values(cart).forEach(i=>{const k=i.rid||i.rest;(by[k]=by[k]||{rest:i.rest,wa:i.wa,sham:i.sham,items:[]}).items.push(i)});
+ const by={};Object.values(cart).forEach(i=>{const k=i.rid||i.rest;(by[k]=by[k]||{rest:i.rest,wa:i.wa,sham:i.sham,fee:+i.fee||0,items:[]}).items.push(i)});
  const links=Object.values(by).map(g=>{
   const sub=g.items.reduce((s,i)=>s+i.qty*i.price,0);
   const dg=!coupon||!d?0:(coupon.type==='percent'?Math.round(sub*Math.min(100,+coupon.value||0)/100):Math.round(d*sub/total));
-  let m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${g.rest}*\n`+g.items.map(i=>`• ${i.name} × ${i.qty} = ${i.qty*i.price}`).join('\n')+`\n\n💰 المجموع: ${sub} ل.س`;
-  if(dg)m+=`\n🎟️ كود الخصم (${coupon.code}): −${dg} ل.س`;
-  m+=`\n✅ *الإجمالي: ${sub-dg} ل.س*\n\n💳 *طريقة الدفع: ${pay==='sham'?'شام كاش':'كاش عند الاستلام'}*`;
+  let m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${g.rest}*\n`+g.items.map(i=>`• ${i.name} × ${i.qty} = ${i.qty*i.price}`).join('\n')+`\n\n💰 سعر المنتجات: ${sub} ل.س`;
+  if(dg)m+=`\n🎟️ الحسم (${coupon.code}): −${dg} ل.س`;
+  if(g.fee)m+=`\n🛵 أجور التوصيل: ${g.fee} ل.س`;
+  m+=`\n✅ *المبلغ الكلي: ${sub-dg+(+g.fee||0)} ل.س*\n\n💳 *طريقة الدفع: ${pay==='sham'?'شام كاش':'كاش عند الاستلام'}*`;
   if(pay==='sham')m+=(g.sham?`\n📱 حساب شام كاش: ${g.sham}`:'')+`\n⚠️ سأرسل إيصال التحويل هنا`;
   m+=`\n\n👤 ${n}${ex()}\n📞 ${t}\n📍 ${a}${mp()}`+(o?`\n📝 ${o}`:'');
-  return {rest:g.rest,url:`https://wa.me/${waNum(g.wa)}?text=${encodeURIComponent(m)}`};
+  return {rest:g.rest,url:waUrl(waNum(g.wa),m)};
  });
- const h=L('zhist',[]);h.unshift({date:Date.now(),total:total-d,cart});localStorage.setItem('zhist',JSON.stringify(h.slice(0,20)));
+ const h=L('zhist',[]);h.unshift({date:Date.now(),total:total-d+feeTotal(),cart});localStorage.setItem('zhist',JSON.stringify(h.slice(0,20)));
  cart={};saveC();coupon=null;localStorage.removeItem('zcoup');draft={};
- if(links.length===1){go('orders');if(!window.open(links[0].url,'_blank'))location.href=links[0].url;return}
- $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>📨 أرسل الطلبات</h2><p style="color:var(--g)">طلبك من أكثر من مطعم، اضغط كل زر ليُرسل طلب مطعمه على واتساب:</p>`+links.map(l=>`<a class="ct" style="margin:10px 0" target="_blank" href="${l.url}">💬 إرسال طلب ${esc(l.rest)}</a>`).join('')+`<button class="btn" style="margin-top:14px" onclick="go('orders')">تم ✅</button></div>`;
+ if(links.length===1){go('orders');openWa(links[0].url);return}
+ $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>📨 أرسل الطلبات</h2><p style="color:var(--g)">طلبك من أكثر من مطعم، اضغط كل زر ليُرسل طلب مطعمه على واتساب:</p>`+(pend=links).map((l,i)=>`<a class="ct" style="margin:10px 0" href="#" onclick="openWa(pend[${i}].url);return false">💬 إرسال طلب ${esc(l.rest)}</a>`).join('')+`<button class="btn" style="margin-top:14px" onclick="go('orders')">تم ✅</button></div>`;
  chrome('cart');
 }
 function orders(){
