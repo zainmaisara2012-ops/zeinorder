@@ -115,7 +115,7 @@ const cnt=()=>Object.values(cart).reduce((a,i)=>a+i.qty,0);
 const tot=()=>Object.values(cart).reduce((a,i)=>a+i.qty*i.price,0);
 let cur=location.hash.slice(1);
 const go=h=>{prev=cur;cur=h;try{location.hash=h}catch(e){}route()};
-$('nct').onclick=e=>{e.preventDefault();openWa(waUrl(waNum(WHATSAPP),'مرحباً، أريد التواصل مع إدارة zainorder'))};
+$('nct').onclick=e=>{e.preventDefault();showSend([{rest:'إدارة zainorder',num:waNum(WHATSAPP),text:'مرحباً، أريد التواصل مع إدارة zainorder'}],'💬 تواصل مع الإدارة')};
 
 async function load(){
  cpOk=false;
@@ -270,22 +270,26 @@ function cartPage(){
 }
 const ex=()=>{const u=L('zuser',{});return u.age?`\n🎂 العمر: ${u.age}`:''};
 const mp=()=>{const u=L('zuser',{});return u.loc?`\n🗺️ موقعي على الخريطة: ${mapUrl(u.loc)}`:''};
-const IS_APP=()=>((window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true)&&/Android|iPhone|iPad/i.test(navigator.userAgent);
-const waUrl=(num,text)=>IS_APP()?`whatsapp://send?phone=${num}&text=${encodeURIComponent(text)}`:`https://wa.me/${num}?text=${encodeURIComponent(text)}`;
+const VER='v6';
 let pend=[];
-function openWa(u){
- if(u.startsWith('whatsapp:')){
-  location.href=u;
-  const t=setTimeout(()=>{if(!document.hidden)alert('تعذر فتح واتساب، تأكد أنه مثبّت على هاتفك')},2500);
-  document.addEventListener('visibilitychange',()=>clearTimeout(t),{once:true});
- }else if(!window.open(u,'_blank'))location.href=u;
+const waHref=(num,text)=>{const e=encodeURIComponent(text);return /Android|iPhone|iPad/i.test(navigator.userAgent)?`whatsapp://send?phone=${num}&text=${e}`:`https://wa.me/${num}?text=${e}`};
+function copyOrder(i){
+ const t=pend[i].text;
+ const done=()=>alert('✅ تم نسخ الطلب، افتح واتساب والصقه وأرسله');
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done).catch(()=>fb());else fb();
+ function fb(){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();try{document.execCommand('copy');done()}catch(e){alert('تعذر النسخ')}x.remove()}
+}
+function showSend(links,title){
+ pend=links;
+ $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>${title}</h2><p style="color:var(--g)">اضغط الزر الأخضر لفتح واتساب وإرسال الرسالة. وإن لم يفتح فانسخ النص والصقه في واتساب.</p>`+links.map((l,i)=>`<div class="box"><b>🍽️ ${esc(l.rest)}</b><a class="ct" href="${waHref(l.num,l.text)}">💬 فتح واتساب وإرسال</a><button class="btn" style="background:#555" onclick="copyOrder(${i})">📋 نسخ نص الطلب</button><a href="https://wa.me/${l.num}?text=${encodeURIComponent(l.text)}" target="_blank" style="display:block;text-align:center;margin-top:10px;font-size:13px;color:var(--g)">لم يفتح؟ جرّب الرابط البديل</a></div>`).join('')+`<button class="btn" style="margin-top:10px" onclick="go('orders')">تم ✅</button><p style="text-align:center;color:#bbb;font-size:11px;margin-top:14px">${VER}</p></div>`;
+ chrome('cart');scrollTo(0,0);
 }
 function waNum(n){let d=String(n||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='963'+d.slice(1);return d||WHATSAPP}
 function quick(id){
  const p=P.find(x=>x.id===id);if(!p)return;
  const r=R.find(x=>x.id===p.rid)||{},i=L('zinfo',{}),f=+String(r.fee||'').replace(/[^\d.]/g,'')||0;
  const m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${r.name||''}*\n• ${p.name} × 1 = ${p.price}\n\n💰 سعر المنتج: ${p.price} ل.س${f?`\n🛵 أجور التوصيل: ${f} ل.س`:''}\n✅ *المبلغ الكلي: ${+p.price+f} ل.س*\n💳 طريقة الدفع (كاش / شام كاش): \n\n👤 ${i.n||'الاسم: '}${ex()}\n📞 ${i.t||'الهاتف: '}\n📍 ${i.a||'العنوان: '}${mp()}`;
- openWa(waUrl(waNum(r.wa),m));
+ showSend([{rest:r.name||'',num:waNum(r.wa),text:m}],'📨 طلبك جاهز');
 }
 function send(){
  const Z={...L('zinfo',{}),...L('zuser',{})};
@@ -306,13 +310,11 @@ function send(){
   m+=`\n✅ *المبلغ الكلي: ${sub-dg+(+g.fee||0)} ل.س*\n\n💳 *طريقة الدفع: ${pay==='sham'?'شام كاش':'كاش عند الاستلام'}*`;
   if(pay==='sham')m+=(g.sham?`\n📱 حساب شام كاش: ${g.sham}`:'')+`\n⚠️ سأرسل إيصال التحويل هنا`;
   m+=`\n\n👤 ${n}${ex()}\n📞 ${t}\n📍 ${a}${mp()}`+(o?`\n📝 ${o}`:'');
-  return {rest:g.rest,url:waUrl(waNum(g.wa),m)};
+  return {rest:g.rest,num:waNum(g.wa),text:m};
  });
  const h=L('zhist',[]);h.unshift({date:Date.now(),total:total-d+feeTotal(),cart});localStorage.setItem('zhist',JSON.stringify(h.slice(0,20)));
  cart={};saveC();coupon=null;localStorage.removeItem('zcoup');draft={};
- if(links.length===1){go('orders');openWa(links[0].url);return}
- $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>📨 أرسل الطلبات</h2><p style="color:var(--g)">طلبك من أكثر من مطعم، اضغط كل زر ليُرسل طلب مطعمه على واتساب:</p>`+(pend=links).map((l,i)=>`<a class="ct" style="margin:10px 0" href="#" onclick="openWa(pend[${i}].url);return false">💬 إرسال طلب ${esc(l.rest)}</a>`).join('')+`<button class="btn" style="margin-top:14px" onclick="go('orders')">تم ✅</button></div>`;
- chrome('cart');
+ showSend(links,'📨 طلبك جاهز');
 }
 function orders(){
  const h=L('zhist',[]);
