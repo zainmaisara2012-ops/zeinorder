@@ -44,9 +44,10 @@ h2{font-size:20px;font-weight:800;margin:18px 0 10px}
 .pr img{width:86px;height:86px;border-radius:14px;object-fit:cover;background:#eee;flex:none}
 .pr .i{flex:1}.pr small{color:var(--g)}.pc{color:var(--c);font-weight:800}
 .off{opacity:.45}
-.q{display:flex;align-items:center;gap:10px}
-.q button{width:34px;height:34px;border-radius:50%;border:0;background:var(--c);color:#fff;font-size:20px}
-.q b{min-width:18px;text-align:center}
+.q{display:flex;align-items:center;gap:8px}
+.q button,.row .q button{width:44px;height:44px;border-radius:50%;border:0;background:var(--c);color:#fff;font-size:28px;font-weight:800;line-height:1;padding:0;margin:0;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px #ff6b1a55}
+.q button.mn,.row .q button.mn{background:#fff;color:var(--c);border:2.5px solid var(--c);box-shadow:none}
+.q b{min-width:28px;text-align:center;font-size:19px}
 .hd{height:170px;position:relative;background:#ddd}.hd img{width:100%;height:100%;object-fit:cover}
 .q2{background:#25d366;color:#fff;border:0;border-radius:20px;padding:5px 12px;font-size:13px;font-weight:700;white-space:nowrap}
 .up{display:block;text-align:center;background:#e8f7ee;color:#128c4a;border:2px dashed #25d366;border-radius:12px;padding:10px;margin:5px 0;font-weight:700}
@@ -189,7 +190,7 @@ function rest(id){
  <div class="rt"><div class="w" style="padding:0"><h2 style="margin-top:0">${esc(r.name)}</h2><div class="m">${r.rating?'⭐ '+esc(r.rating)+' · ':''}${r.time?'⏱ '+esc(r.time)+' د · ':''}${r.fee?'🛵 '+esc(r.fee)+' ل.س':''}</div><small style="color:var(--g)">${esc(r.desc)}</small>${closed?'<p style="color:#d33;font-weight:700;margin-top:8px">المطعم مغلق حالياً</p>':''}
  ${secs.map(s=>`<h2>${esc(s)}</h2>`+list.filter(p=>(p.sec||'الأصناف')===s).map(p=>{
   const n=cart[p.id]?.qty||0,ok=p.available!==false&&!closed;
-  return `<div class="pr ${ok?'':'off'}"><img ${im(p.img)}><div class="i"><b>${esc(p.name)}</b><br><small>${esc(p.desc)}</small><br><span class="pc">${esc(p.price)} ل.س</span></div>`+'<div style="display:flex;flex-direction:column;gap:6px;align-items:center">'+(!ok?'<small>غير متوفر</small>':n?`<div class="q"><button onclick="add('${p.id}',1)">+</button><b>${n}</b><button onclick="add('${p.id}',-1)">−</button></div>`:`<button class="btn s" onclick="add('${p.id}',1)">+ أضف</button>`)+(ok?`<button class="q2" onclick="quick('${p.id}')">💬 اطلب الآن</button>`:'')+'</div>'}).join('')).join('')||'<p>لا توجد منتجات.</p>'}</div></div>`;
+  return `<div class="pr ${ok?'':'off'}"><img ${im(p.img)}><div class="i"><b>${esc(p.name)}</b><br><small>${esc(p.desc)}</small><br><span class="pc">${esc(p.price)} ل.س</span></div>`+'<div style="display:flex;flex-direction:column;gap:6px;align-items:center">'+(!ok?'<small>غير متوفر</small>':n?`<div class="q"><button onclick="add('${p.id}',1)">+</button><b>${n}</b><button class="mn" onclick="add('${p.id}',-1)">−</button></div>`:`<button class="btn s" onclick="add('${p.id}',1)">+ أضف</button>`)+(ok?`<button class="q2" onclick="quick('${p.id}')">💬 اطلب الآن</button>`:'')+'</div>'}).join('')).join('')||'<p>لا توجد منتجات.</p>'}</div></div>`;
  chrome('rest');
 }
 const feeTotal=()=>{const m={};Object.values(cart).forEach(i=>{m[i.rid||i.rest]=+i.fee||0});return Object.values(m).reduce((a,b)=>a+b,0)};
@@ -260,7 +261,7 @@ function cartPage(){
  if(!it.length){$('app').innerHTML='<div class="w" style="padding-top:40px;text-align:center"><h2>🛒 السلة فارغة</h2><button class="btn" onclick="go(\'\')">تصفح المطاعم</button></div>';return chrome('cart')}
  const d=discAll(),f=feeTotal(),shams={};Object.values(cart).forEach(i=>{if(i.sham)shams[i.rest]=i.sham});
  const sh=Object.entries(shams).map(([r,x])=>`<div>🍽️ ${esc(r)}: <b>${esc(x)}</b></div>`).join('')||'<div>سيصلك رقم الحساب من المطعم على واتساب.</div>';
- $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>🛒 سلتك</h2><div class="box">${it.map(([id,i])=>`<div class="row"><span><b>${esc(i.name)}</b><br><small style="color:var(--g)">${esc(i.rest)} · ${i.price} × ${i.qty} = ${i.price*i.qty}</small></span><div class="q"><button onclick="add('${id}',1)">+</button><button onclick="add('${id}',-1)">−</button></div></div>`).join('')}
+ $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>🛒 سلتك</h2><div class="box">${it.map(([id,i])=>`<div class="row"><span><b>${esc(i.name)}</b><br><small style="color:var(--g)">${esc(i.rest)} · ${i.price} × ${i.qty} = ${i.price*i.qty}</small></span><div class="q"><button onclick="add('${id}',1)">+</button><b>${i.qty}</b><button class="mn" onclick="add('${id}',-1)">−</button></div></div>`).join('')}
  <div class="row"><span>سعر المنتجات</span><b>${tot()} ل.س</b></div>${f?`<div class="row"><span>🛵 أجور التوصيل</span><b>${f} ل.س</b></div>`:''}${d?`<div class="row"><span>🎟️ الحسم</span><b style="color:#d33">−${d} ل.س</b></div>`:''}<div class="row"><b>المبلغ الكلي</b><b class="pc" style="font-size:20px">${tot()-d+f} ل.س</b></div></div>
  <div class="box"><b>🎟️ كود الخصم</b>${coupon?`<div class="row" style="border:0"><span><b>${esc(coupon.code)}</b> مُطبَّق</span><button onclick="rmCp()">✖ إلغاء</button></div>`:`<input id="cp" placeholder="اكتب الكود إن وُجد"><button class="btn s" style="width:100%;margin-top:4px" onclick="applyCp()">تطبيق الكود</button>`}</div>
  <div class="box"><b>💳 طريقة الدفع</b><label class="pay"><input type="radio" name="pay" value="cash" ${info.pay==='sham'?'':'checked'} onchange="pshow();saveDraft()">💵 كاش عند الاستلام</label><label class="pay"><input type="radio" name="pay" value="sham" ${info.pay==='sham'?'checked':''} onchange="pshow();saveDraft()">📱 شام كاش</label><div id="shi" style="display:none;margin-top:8px;font-size:14px;color:var(--g)">حوّل المبلغ إلى حساب شام كاش، ثم أرسل إيصال التحويل في واتساب:${sh}</div></div>
