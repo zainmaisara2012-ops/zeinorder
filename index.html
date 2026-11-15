@@ -48,6 +48,7 @@ h2{font-size:20px;font-weight:800;margin:18px 0 10px}
 .q button{width:34px;height:34px;border-radius:50%;border:0;background:var(--c);color:#fff;font-size:20px}
 .q b{min-width:18px;text-align:center}
 .hd{height:170px;position:relative;background:#ddd}.hd img{width:100%;height:100%;object-fit:cover}
+.q2{background:#25d366;color:#fff;border:0;border-radius:20px;padding:5px 12px;font-size:13px;font-weight:700;white-space:nowrap}
 .bk{position:absolute;top:12px;right:12px;background:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:20px;box-shadow:0 2px 8px #0003}
 .rt{background:#fff;border-radius:24px 24px 0 0;margin-top:-22px;position:relative;padding:16px 14px 4px}
 input,select,textarea{width:100%;padding:12px;margin:5px 0;border:1px solid #ddd;border-radius:12px;font-size:16px;background:#fff}
@@ -174,7 +175,7 @@ function rest(id){
  <div class="rt"><div class="w" style="padding:0"><h2 style="margin-top:0">${esc(r.name)}</h2><div class="m">${r.rating?'⭐ '+esc(r.rating)+' · ':''}${r.time?'⏱ '+esc(r.time)+' د · ':''}${r.fee?'🛵 '+esc(r.fee)+' ل.س':''}</div><small style="color:var(--g)">${esc(r.desc)}</small>${closed?'<p style="color:#d33;font-weight:700;margin-top:8px">المطعم مغلق حالياً</p>':''}
  ${secs.map(s=>`<h2>${esc(s)}</h2>`+list.filter(p=>(p.sec||'الأصناف')===s).map(p=>{
   const n=cart[p.id]?.qty||0,ok=p.available!==false&&!closed;
-  return `<div class="pr ${ok?'':'off'}"><img ${im(p.img)}><div class="i"><b>${esc(p.name)}</b><br><small>${esc(p.desc)}</small><br><span class="pc">${esc(p.price)} ل.س</span></div>`+(!ok?'<small>غير متوفر</small>':n?`<div class="q"><button onclick="add('${p.id}',1)">+</button><b>${n}</b><button onclick="add('${p.id}',-1)">−</button></div>`:`<button class="btn s" onclick="add('${p.id}',1)">+ أضف</button>`)+'</div>'}).join('')).join('')||'<p>لا توجد منتجات.</p>'}</div></div>`;
+  return `<div class="pr ${ok?'':'off'}"><img ${im(p.img)}><div class="i"><b>${esc(p.name)}</b><br><small>${esc(p.desc)}</small><br><span class="pc">${esc(p.price)} ل.س</span></div>`+'<div style="display:flex;flex-direction:column;gap:6px;align-items:center">'+(!ok?'<small>غير متوفر</small>':n?`<div class="q"><button onclick="add('${p.id}',1)">+</button><b>${n}</b><button onclick="add('${p.id}',-1)">−</button></div>`:`<button class="btn s" onclick="add('${p.id}',1)">+ أضف</button>`)+(ok?`<button class="q2" onclick="quick('${p.id}')">💬 اطلب الآن</button>`:'')+'</div>'}).join('')).join('')||'<p>لا توجد منتجات.</p>'}</div></div>`;
  chrome('rest');
 }
 function cartPage(){
@@ -186,6 +187,13 @@ function cartPage(){
  chrome('cart');
 }
 function waNum(n){let d=String(n||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='963'+d.slice(1);return d||WHATSAPP}
+function quick(id){
+ const p=P.find(x=>x.id===id);if(!p)return;
+ const r=R.find(x=>x.id===p.rid)||{},i=L('zinfo',{});
+ const m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${r.name||''}*\n• ${p.name} × 1 = ${p.price}\n\n💰 *المجموع: ${p.price} ل.س*\n\n👤 ${i.n||'الاسم: '}\n📞 ${i.t||'الهاتف: '}\n📍 ${i.a||'العنوان: '}`;
+ const u=`https://wa.me/${waNum(r.wa)}?text=${encodeURIComponent(m)}`;
+ if(!window.open(u,'_blank'))location.href=u;
+}
 function send(){
  const n=$('n').value.trim(),t=$('t').value.trim(),a=$('a').value.trim(),o=$('o').value.trim();
  if(!n||!t||!a)return alert('الرجاء إدخال الاسم والهاتف والعنوان');
