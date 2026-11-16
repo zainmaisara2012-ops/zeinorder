@@ -232,7 +232,7 @@ async function enableNotif(){
 }
 if(msg)try{msg.onMessage(async p=>{const n=p.notification||{};const rg=await navigator.serviceWorker.getRegistration();if(rg)rg.showNotification(n.title||'zainorder',{body:n.body||'',icon:'icon-192.png'})})}catch(e){}
 const notifCard=()=>(msg&&!/^PASTE/.test(VAPID)&&typeof Notification!=='undefined'&&Notification.permission==='default')?`<div class="w"><div class="reo" style="margin-top:6px"><div><b>🔔 الإشعارات</b><br><small style="color:var(--g)">فعّلها لتصلك العروض والخصومات</small></div><button class="btn s" onclick="enableNotif()">تفعيل</button></div></div>`:'';
-const VER7='v7';
+const VER7='v8';
 const getFavs=()=>L('zfav',[]);
 function togFav(id){const f=getFavs(),i=f.indexOf(id);if(i>=0)f.splice(i,1);else f.push(id);localStorage.setItem('zfav',JSON.stringify(f));route(true)}
 const getAddrs=()=>{let l=L('zaddr',null);if(!l){const u=L('zuser',{});l=u.a?[{l:'العنوان الأساسي',a:u.a}]:[]}return l};
@@ -330,7 +330,7 @@ function cartPage(){
 }
 const ex=()=>{const u=L('zuser',{});return u.age?`\n🎂 العمر: ${u.age}`:''};
 const mp=()=>'';
-const VER='v7';
+const VER='v8';
 let pend=[];
 const waHref=(num,text)=>{const e=encodeURIComponent(text);return /Android|iPhone|iPad/i.test(navigator.userAgent)?`whatsapp://send?phone=${num}&text=${e}`:`https://wa.me/${num}?text=${e}`};
 function copyOrder(i){
@@ -436,7 +436,7 @@ function edt(c,id){ed[c]=id;admin();scrollTo(0,0)}
 async function del(c,id){if(!confirm('تأكيد الحذف؟'))return;if(c==='restaurants')for(const p of P.filter(p=>p.rid===id))await db.collection('products').doc(p.id).delete();await db.collection(c).doc(id).delete();await load();admin()}
 async function tg(c,id,k,cur){await db.collection(c).doc(id).update({[k]:!cur});await load();admin()}
 
-if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator){const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!window.__rl){window.__rl=1;location.reload()}});window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{}))}
 function retry(){err=false;route(true);Promise.race([load(),new Promise((_,j)=>setTimeout(()=>j('timeout'),25000))]).then(()=>route(true)).catch(e=>{console.error(e);err=true;route(true)})}
 document.addEventListener('contextmenu',e=>{if(!/^(INPUT|TEXTAREA)$/.test(e.target.tagName))e.preventDefault()});
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h!==cur){prev=cur;cur=h;route()}});
