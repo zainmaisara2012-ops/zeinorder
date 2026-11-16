@@ -64,6 +64,9 @@ input[type=checkbox]{width:20px;height:20px;margin:0;accent-color:var(--c)}
 .ph{background:#fff;border-radius:0 0 28px 28px;padding:30px 20px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .inv{background:#ffe6d6;border-radius:18px;padding:16px;display:flex;justify-content:space-between;align-items:center;margin:14px 0;font-weight:700;color:#e8591a}
 .fv{position:absolute;top:12px;left:12px;background:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:20px;box-shadow:0 2px 8px #0003}
+*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select{-webkit-user-select:text;user-select:text}
+img{-webkit-user-drag:none}
 .bk{position:absolute;top:12px;right:12px;background:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:20px;box-shadow:0 2px 8px #0003}
 .rt{background:#fff;border-radius:24px 24px 0 0;margin-top:-22px;position:relative;padding:16px 14px 4px}
 input,select,textarea{width:100%;padding:12px;margin:5px 0;border:1px solid #ddd;border-radius:12px;font-size:16px;background:#fff}
@@ -435,6 +438,7 @@ async function tg(c,id,k,cur){await db.collection(c).doc(id).update({[k]:!cur});
 
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 function retry(){err=false;route(true);Promise.race([load(),new Promise((_,j)=>setTimeout(()=>j('timeout'),25000))]).then(()=>route(true)).catch(e=>{console.error(e);err=true;route(true)})}
+document.addEventListener('contextmenu',e=>{if(!/^(INPUT|TEXTAREA)$/.test(e.target.tagName))e.preventDefault()});
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h!==cur){prev=cur;cur=h;route()}});
 if(auth)auth.onAuthStateChanged(()=>{if(cur==='admin')route(true)});
 route();
