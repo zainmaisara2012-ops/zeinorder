@@ -59,6 +59,11 @@ input[type=radio]{width:20px;height:20px;margin:0}
 .nt{display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid #e5e5ea;border-radius:14px;font-weight:600;font-size:15px;background:#fff}
 .nt:has(input:checked){border-color:var(--c);background:#fff2e8;color:var(--c)}
 input[type=checkbox]{width:20px;height:20px;margin:0;accent-color:var(--c)}
+#fab{position:fixed;left:14px;bottom:100px;z-index:9;width:56px;height:56px;border-radius:50%;background:var(--c);display:none;align-items:center;justify-content:center;box-shadow:0 6px 16px #ff6b1a77}
+.li{display:flex;align-items:center;justify-content:space-between;padding:16px 4px;border-bottom:1px solid #eee;font-weight:600;font-size:16px}.li:last-child{border:0}.ch{color:var(--g);font-size:24px}
+.ph{background:#fff;border-radius:0 0 28px 28px;padding:30px 20px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.inv{background:#ffe6d6;border-radius:18px;padding:16px;display:flex;justify-content:space-between;align-items:center;margin:14px 0;font-weight:700;color:#e8591a}
+.fv{position:absolute;top:12px;left:12px;background:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:20px;box-shadow:0 2px 8px #0003}
 .bk{position:absolute;top:12px;right:12px;background:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:20px;box-shadow:0 2px 8px #0003}
 .rt{background:#fff;border-radius:24px 24px 0 0;margin-top:-22px;position:relative;padding:16px 14px 4px}
 input,select,textarea{width:100%;padding:12px;margin:5px 0;border:1px solid #ddd;border-radius:12px;font-size:16px;background:#fff}
@@ -76,6 +81,7 @@ input,select,textarea{width:100%;padding:12px;margin:5px 0;border:1px solid #ddd
 </head>
 <body>
 <div id="app"></div>
+<div id="fab" onclick="support()" aria-label="مساعدة"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><rect x="2" y="14" width="5" height="7" rx="2"/><rect x="17" y="14" width="5" height="7" rx="2"/></svg></div>
 <div id="cb"><button class="btn" id="cbb" onclick="go('cart')"></button></div>
 <div id="fl"><span>⚡</span><span style="flex:1" id="flt"></span><span class="tm" id="fltm"></span></div>
 <div class="nav" id="nav">
@@ -83,7 +89,7 @@ input,select,textarea{width:100%;padding:12px;margin:5px 0;border:1px solid #ddd
  <a href="#search" onclick="go('search');return false" data-p="search"><i>🔍</i>البحث</a>
  <a href="#orders" onclick="go('orders');return false" data-p="orders"><i>🧾</i>طلباتي</a>
  <a href="#cart" onclick="go('cart');return false" data-p="cart"><i>🛒</i>السلة <span id="nc"></span></a>
- <a href="#" id="nct"><i>💬</i>الإدارة</a>
+ <a href="#account" onclick="go('account');return false" data-p="account"><i>👤</i>حسابي</a>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -120,7 +126,6 @@ const cnt=()=>Object.values(cart).reduce((a,i)=>a+i.qty,0);
 const tot=()=>Object.values(cart).reduce((a,i)=>a+i.qty*i.price,0);
 let cur=location.hash.slice(1);
 const go=h=>{prev=cur;cur=h;try{location.hash=h}catch(e){}route()};
-$('nct').onclick=e=>{e.preventDefault();showSend([{rest:'إدارة zainorder',num:waNum(WHATSAPP),text:'مرحباً، أريد التواصل مع إدارة zainorder'}],'💬 تواصل مع الإدارة')};
 
 async function load(){
  cpOk=false;
@@ -148,6 +153,9 @@ function chrome(p){
  const nh=$('nav').offsetHeight||0;
  $('fl').style.bottom=nh+'px';
  $('cb').style.bottom=(nh+(showFl?58:0)+12)+'px';
+ const cbv=$('cb').style.display==='block';
+ $('fab').style.display=(adm||p==='reg')?'none':'flex';
+ $('fab').style.bottom=(nh+(showFl?58:0)+(cbv?68:0)+14)+'px';
 }
 setInterval(()=>{const n=new Date(),e=new Date(n);e.setHours(23,59,59,999);const s=Math.max(0,Math.floor((e-n)/1000));
  $('fltm').textContent=[s/3600|0,(s/60|0)%60,s%60].map(x=>String(x).padStart(2,'0')).join(':')},1000);
@@ -161,6 +169,7 @@ function route(keep){
  if(h!=='admin'&&!L('zuser',null))return reg(false);
  if(h==='admin')return admin();
  if(h==='profile')return reg(true);
+ const PG={account:account,addresses:addrPage,coupons:cpPage,favs:favPage,privacy:privacyPage,terms:termsPage,about:aboutPage};if(PG[h])return PG[h]();
  if(h==='cart')return cartPage();
  if(h==='search')return search();
  if(h==='orders')return orders();
@@ -194,7 +203,7 @@ function sres(){
 function rest(id){
  const r=R.find(x=>x.id===id);if(!r)return home();
  const closed=r.open===false,list=P.filter(p=>p.rid===id),secs=[...new Set(list.map(p=>p.sec||'الأصناف'))];
- $('app').innerHTML=`<div class="hd"><img ${im(r.img)}><button class="bk" onclick="go(prev&&prev!==cur?prev:'')">→</button></div>
+ $('app').innerHTML=`<div class="hd"><img ${im(r.img)}><button class="bk" onclick="go(prev&&prev!==cur?prev:'')">→</button><button class="fv" onclick="togFav('${r.id}')">${getFavs().includes(r.id)?'❤️':'🤍'}</button></div>
  <div class="rt"><div class="w" style="padding:0"><h2 style="margin-top:0">${esc(r.name)}</h2><div class="m">${r.rating?'⭐ '+esc(r.rating)+' · ':''}${r.time?'⏱ '+esc(r.time)+' د · ':''}${r.fee?'🛵 '+esc(r.fee)+' ل.س':''}</div><small style="color:var(--g)">${esc(r.desc)}</small>${closed?'<p style="color:#d33;font-weight:700;margin-top:8px">المطعم مغلق حالياً</p>':''}
  ${secs.map(s=>`<h2>${esc(s)}</h2>`+list.filter(p=>(p.sec||'الأصناف')===s).map(p=>{
   const n=cart[p.id]?.qty||0,ok=p.available!==false&&!closed;
@@ -202,8 +211,10 @@ function rest(id){
  chrome('rest');
 }
 const NOTES=['🚪 لا تطرق الباب','📦 ضع الطلب عند الباب','📞 اتصل بي عند الوصول','🔕 لا ترن الجرس'];
+const cpDesc=c=>c.type==='freeship'?'🛵 توصيل مجاني':c.type==='shippct'?`🛵 ${c.value}% على التوصيل`:c.type==='fixed'?`${c.value} ل.س على المنتجات`:`${c.value}% على المنتجات`;
 const feeTotal=()=>{const m={};Object.values(cart).forEach(i=>{m[i.rid||i.rest]=+i.fee||0});return Object.values(m).reduce((a,b)=>a+b,0)};
-const discAll=()=>{const t=tot();if(!coupon||!t)return 0;const v=+coupon.value||0;return coupon.type==='percent'?Math.round(t*Math.min(100,v)/100):Math.min(t,Math.round(v))};
+const feeDisc=()=>{const f=feeTotal();if(!coupon||!f)return 0;return coupon.type==='freeship'?f:coupon.type==='shippct'?Math.round(f*Math.min(100,+coupon.value||0)/100):0};
+const discAll=()=>{const t=tot();if(!coupon||!t||(coupon.type!=='percent'&&coupon.type!=='fixed'))return 0;const v=+coupon.value||0;return coupon.type==='percent'?Math.round(t*Math.min(100,v)/100):Math.min(t,Math.round(v))};
 let tmpLoc=null;
 const mapUrl=l=>`https://www.google.com/maps?q=${l.lat},${l.lng}`;
 async function enableNotif(){
@@ -218,6 +229,52 @@ async function enableNotif(){
 }
 if(msg)try{msg.onMessage(async p=>{const n=p.notification||{};const rg=await navigator.serviceWorker.getRegistration();if(rg)rg.showNotification(n.title||'zainorder',{body:n.body||'',icon:'icon-192.png'})})}catch(e){}
 const notifCard=()=>(msg&&!/^PASTE/.test(VAPID)&&typeof Notification!=='undefined'&&Notification.permission==='default')?`<div class="w"><div class="reo" style="margin-top:6px"><div><b>🔔 الإشعارات</b><br><small style="color:var(--g)">فعّلها لتصلك العروض والخصومات</small></div><button class="btn s" onclick="enableNotif()">تفعيل</button></div></div>`:'';
+const VER7='v7';
+const getFavs=()=>L('zfav',[]);
+function togFav(id){const f=getFavs(),i=f.indexOf(id);if(i>=0)f.splice(i,1);else f.push(id);localStorage.setItem('zfav',JSON.stringify(f));route(true)}
+const getAddrs=()=>{let l=L('zaddr',null);if(!l){const u=L('zuser',{});l=u.a?[{l:'العنوان الأساسي',a:u.a}]:[]}return l};
+function subPage(title,html){$('app').innerHTML=`<div class="w" style="padding-top:14px"><button class="btn s" style="background:#999" onclick="go('account')">→ رجوع</button><h2>${title}</h2>${html}</div>`;chrome('account');scrollTo(0,0)}
+function support(){showSend([{rest:'إدارة zainorder',num:waNum(WHATSAPP),text:'مرحباً، أحتاج مساعدة في zainorder'}],'💬 الحصول على المساعدة')}
+function joinUs(k){
+ const u=L('zuser',{}),who=`\n\n👤 ${u.n||''}\n📞 ${u.t||''}`;
+ const m={drv:['🛵 انضم لفريق التوصيل','مرحباً، أرغب بالانضمام إلى فريق التوصيل في zainorder.'+who],rst:['🍽️ انضم كمطعم / متجر','مرحباً، أرغب بإضافة مطعمي / متجري إلى zainorder.\nاسم المطعم / المتجر: \nالتصنيف: \nالعنوان: '+who],team:['🧑‍💼 انضم إلى فريق العمل','مرحباً، أرغب بالانضمام إلى فريق العمل في zainorder.'+who]}[k];
+ showSend([{rest:'إدارة zainorder',num:waNum(WHATSAPP),text:m[1]}],m[0]);
+}
+function shareApp(){
+ const url=location.origin+location.pathname,text='اطلب من مطاعمك المفضلة عبر zainorder';
+ if(navigator.share)navigator.share({title:'zainorder',text,url}).catch(()=>{});
+ else if(navigator.clipboard)navigator.clipboard.writeText(text+'\n'+url).then(()=>alert('✅ تم نسخ رابط التطبيق، شاركه مع أصدقائك'));
+ else alert(url);
+}
+const row=(ic,t,fn)=>`<div class="li" onclick="${fn}"><span>${ic}&nbsp; ${t}</span><span class="ch">‹</span></div>`;
+function account(){
+ const u=L('zuser',{});
+ $('app').innerHTML=`<div class="ph"><div><div style="font-size:24px;font-weight:800">${esc(u.n)}</div><div style="color:var(--g);margin-top:4px">${esc(u.t)}</div></div><button class="btn s" style="background:#f0f0f3;color:var(--t)" onclick="go('profile')">✏️ تعديل</button></div>
+ <div class="w"><div class="box" style="padding:4px 14px">${row('🧾','طلباتي',"go('orders')")}${row('📍','عناويني',"go('addresses')")}${row('🎟️','حسوماتي',"go('coupons')")}${row('❤️','المفضلة',"go('favs')")}</div>
+ <div class="inv" onclick="shareApp()"><span>دعوة الأصدقاء<br><small style="font-weight:400">شارك التطبيق مع أصدقائك</small></span><span style="font-size:30px">🎁</span></div>
+ <div class="box" style="padding:4px 14px">${row('🛵','انضم لفريق التوصيل',"joinUs('drv')")}${row('🍽️','انضم لنا كمطعم / متجر',"joinUs('rst')")}${row('🧑‍💼','انضم إلى فريق العمل',"joinUs('team')")}</div>
+ <div class="box" style="padding:4px 14px">${row('🔒','سياسة الخصوصية',"go('privacy')")}${row('📜','شروط الاستخدام',"go('terms')")}${row('🎧','الحصول على المساعدة',"support()")}${row('ℹ️','حول التطبيق',"go('about')")}</div>
+ <p style="text-align:center;color:#aaa;font-size:13px">الإصدار ${VER7}</p></div>`;
+ chrome('account');scrollTo(0,0);
+}
+function addrPage(){
+ const l=getAddrs(),di=L('zaddrdef',0);
+ subPage('📍 عناويني',l.map((x,i)=>`<div class="box"><b>${esc(x.l)}</b>${i===di?' <span style="color:var(--c)">✔ الأساسي</span>':''}<br><small style="color:var(--g)">${esc(x.a)}</small><div style="margin-top:8px">${i===di?'':`<button class="btn s" onclick="setAddr(${i})">اعتماد</button> `}<button class="btn s" style="background:#e5e5ea;color:#d33" onclick="delAddr(${i})">🗑️ حذف</button></div></div>`).join('')+`<div class="box"><b>➕ إضافة عنوان</b><input id="al" placeholder="الاسم (المنزل، العمل...)"><input id="at" placeholder="العنوان بالتفصيل"><button class="btn" onclick="addAddr()">حفظ العنوان</button></div>`);
+}
+function setAddr(i){const l=getAddrs();localStorage.setItem('zaddrdef',i);const u=L('zuser',{});u.a=l[i].a;localStorage.setItem('zuser',JSON.stringify(u));const z=L('zinfo',{});z.a=l[i].a;localStorage.setItem('zinfo',JSON.stringify(z));draft={};addrPage()}
+function delAddr(i){const l=getAddrs();if(l.length<2)return alert('لا يمكن حذف العنوان الوحيد');if(!confirm('حذف هذا العنوان؟'))return;l.splice(i,1);localStorage.setItem('zaddr',JSON.stringify(l));localStorage.setItem('zaddrdef',0);setAddr(0)}
+function addAddr(){const a=$('at').value.trim(),n=$('al').value.trim()||'عنوان';if(!a)return alert('اكتب العنوان');const l=getAddrs();l.push({l:n,a});localStorage.setItem('zaddr',JSON.stringify(l));addrPage()}
+function cpPage(){
+ const l=L('zcps',[]);
+ subPage('🎟️ حسوماتي',(l.map((c,i)=>`<div class="box"><b>${esc(c.code)}</b><br><small style="color:var(--g)">${esc(cpDesc(c))}</small><div style="margin-top:8px"><button class="btn s" onclick="useCp(${i})">استخدمه الآن</button> <button class="btn s" style="background:#e5e5ea;color:#d33" onclick="delCp(${i})">🗑️</button></div></div>`).join('')||'<p style="color:var(--g)">لا توجد حسومات محفوظة. أضف كوداً أدناه.</p>')+`<div class="box"><b>➕ إضافة كود حسم</b><input id="ncp" placeholder="اكتب الكود"><button class="btn" onclick="addCp()">إضافة</button></div>`);
+}
+async function addCp(){const code=($('ncp').value||'').trim().toUpperCase().replace(/\s/g,'');if(!code)return alert('اكتب الكود');try{saveCp(await fetchCp(code));cpPage()}catch(e){alert(typeof e==='string'?e:'تعذر التحقق، تأكد من الإنترنت')}}
+async function useCp(i){const c=L('zcps',[])[i];try{coupon=await fetchCp(c.code);localStorage.setItem('zcoup',JSON.stringify(coupon));draft={};go('cart')}catch(e){alert(typeof e==='string'?e:'تعذر التحقق، تأكد من الإنترنت')}}
+function delCp(i){const l=L('zcps',[]);l.splice(i,1);localStorage.setItem('zcps',JSON.stringify(l));cpPage()}
+function favPage(){const f=getFavs(),l=R.filter(r=>f.includes(r.id));subPage('❤️ المفضلة',l.map(rcard).join('')||'<p style="color:var(--g)">لا توجد مطاعم مفضلة. اضغط 🤍 داخل أي مطعم لإضافته.</p>')}
+function privacyPage(){subPage('🔒 سياسة الخصوصية','<div class="box" style="line-height:1.9">نجمع اسمك وعمرك ورقم هاتفك وعنوانك لغرض واحد فقط: توصيل طلباتك.<br><br>تُحفظ بياناتك على جهازك، وتُرسل إلى المطعم عبر واتساب عند إتمام الطلب.<br><br>لا نبيع بياناتك ولا نشاركها مع أي جهة أخرى.<br><br>يمكنك تعديل بياناتك أو عناوينك في أي وقت من صفحة حسابي، ولحذفها امسح بيانات التطبيق من هاتفك.</div>')}
+function termsPage(){subPage('📜 شروط الاستخدام','<div class="box" style="line-height:1.9">• الأسعار وأجور التوصيل تحددها المطاعم وقد تتغير.<br>• يُرسل الطلب عبر واتساب، ويُعتبر مؤكداً بعد تأكيد المطعم له.<br>• طرق الدفع: كاش عند الاستلام أو شام كاش.<br>• أكواد الحسم لها شروطها، ويحق للإدارة إيقافها في أي وقت.<br>• يتحمل الزبون صحة بياناته وعنوانه.</div>')}
+function aboutPage(){subPage('ℹ️ حول التطبيق',`<div class="box" style="line-height:1.9;text-align:center"><div style="font-size:48px">🍔</div><b>zainorder</b><br>اطلب من مطاعمك المفضلة بسهولة وسرعة.<br><small style="color:var(--g)">الإصدار ${VER7}</small></div>`)}
 function reg(edit){
  const u=L('zuser',{});tmpLoc=u.loc||null;
  $('app').innerHTML=`<div class="w" style="padding-top:30px"><div style="text-align:center;font-size:52px">🍔</div><h2 style="text-align:center;margin-top:4px">${edit?'بياناتي':'أهلاً بك في zainorder'}</h2><p style="text-align:center;color:var(--g);margin-bottom:12px">${edit?'عدّل بياناتك ثم احفظ':'سجّل بياناتك مرة واحدة ليصلك طلبك بسرعة'}</p>
@@ -232,42 +289,45 @@ function saveReg(edit){
  if(t.replace(/\D/g,'').length<8)return alert('اكتب رقم هاتف صحيح');
  if(!a)return alert('اكتب عنوانك');
  localStorage.setItem('zuser',JSON.stringify({n,age,t,a,loc:null}));
+ {const al=getAddrs(),di=L('zaddrdef',0);if(al[di])al[di].a=a;else al.push({l:'العنوان الأساسي',a});localStorage.setItem('zaddr',JSON.stringify(al))}
  localStorage.setItem('zinfo',JSON.stringify({n,t,a}));draft={};
  go('');
 }
 function saveDraft(){draft={n:$('n').value,t:$('t').value,a:$('a').value,o:$('o').value,pay:(document.querySelector('input[name=pay]:checked')||{}).value||'cash',nt:[...document.querySelectorAll('input[name=nt]:checked')].map(x=>x.value)}}
 function pshow(){const e=document.querySelector('input[name=pay]:checked');if(e)$('shi').style.display=e.value==='sham'?'block':'none'}
+async function fetchCp(code){
+ const sn=await db.collection('coupons').where('code','==',code).limit(1).get();
+ if(sn.empty)throw 'الكود غير صحيح';
+ const c=sn.docs[0].data();
+ if(c.active===false)throw 'هذا الكود غير فعّال';
+ return {code,type:c.type,value:+c.value||0};
+}
+function saveCp(c){const l=L('zcps',[]).filter(x=>x.code!==c.code);l.unshift(c);localStorage.setItem('zcps',JSON.stringify(l.slice(0,30)))}
 async function applyCp(){
  const code=($('cp').value||'').trim().toUpperCase().replace(/\s/g,'');
  if(!code)return alert('اكتب كود الخصم');
  saveDraft();
- try{
-  const sn=await db.collection('coupons').where('code','==',code).limit(1).get();
-  if(sn.empty)return alert('الكود غير صحيح');
-  const c=sn.docs[0].data();
-  if(c.active===false)return alert('هذا الكود غير فعّال');
-  coupon={code,type:c.type,value:+c.value||0};localStorage.setItem('zcoup',JSON.stringify(coupon));
-  cartPage();
- }catch(e){console.error(e);alert('تعذر التحقق من الكود، تأكد من الإنترنت')}
+ try{coupon=await fetchCp(code);localStorage.setItem('zcoup',JSON.stringify(coupon));saveCp(coupon);cartPage()}
+ catch(e){alert(typeof e==='string'?e:'تعذر التحقق من الكود، تأكد من الإنترنت')}
 }
 function rmCp(){saveDraft();coupon=null;localStorage.removeItem('zcoup');cartPage()}
 function cartPage(){
  const it=Object.entries(cart),info={...L('zinfo',{}),...draft};
  if(!it.length){$('app').innerHTML='<div class="w" style="padding-top:40px;text-align:center"><h2>🛒 السلة فارغة</h2><button class="btn" onclick="go(\'\')">تصفح المطاعم</button></div>';return chrome('cart')}
- const d=discAll(),f=feeTotal(),shams={};Object.values(cart).forEach(i=>{if(i.sham)shams[i.rest]=i.sham});
+ const d=discAll(),f=feeTotal(),fd=feeDisc(),shams={};Object.values(cart).forEach(i=>{if(i.sham)shams[i.rest]=i.sham});
  const sh=Object.entries(shams).map(([r,x])=>`<div>🍽️ ${esc(r)}: <b>${esc(x)}</b></div>`).join('')||'<div>سيصلك رقم الحساب من المطعم على واتساب.</div>';
  $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>🛒 سلتك</h2><div class="box">${it.map(([id,i])=>`<div class="row"><span><b>${esc(i.name)}</b><br><small style="color:var(--g)">${esc(i.rest)} · ${i.price} × ${i.qty} = ${i.price*i.qty}</small></span><div class="q"><button onclick="add('${id}',1)">+</button><b>${i.qty}</b><button class="mn" onclick="add('${id}',-1)">−</button></div></div>`).join('')}
- <div class="row"><span>سعر المنتجات</span><b>${tot()} ل.س</b></div>${f?`<div class="row"><span>🛵 أجور التوصيل</span><b>${f} ل.س</b></div>`:''}${d?`<div class="row"><span>🎟️ الحسم</span><b style="color:#d33">−${d} ل.س</b></div>`:''}<div class="row"><b>المبلغ الكلي</b><b class="pc" style="font-size:20px">${tot()-d+f} ل.س</b></div></div>
- <div class="box"><b>🎟️ كود الخصم</b>${coupon?`<div class="row" style="border:0"><span><b>${esc(coupon.code)}</b> مُطبَّق</span><button onclick="rmCp()">✖ إلغاء</button></div>`:`<input id="cp" placeholder="اكتب الكود إن وُجد"><button class="btn s" style="width:100%;margin-top:4px" onclick="applyCp()">تطبيق الكود</button>`}</div>
+ <div class="row"><span>سعر المنتجات</span><b>${tot()} ل.س</b></div>${f?`<div class="row"><span>🛵 أجور التوصيل</span><b>${f} ل.س</b></div>`:''}${d?`<div class="row"><span>🎟️ الحسم</span><b style="color:#d33">−${d} ل.س</b></div>`:''}${fd?`<div class="row"><span>🎟️ خصم التوصيل</span><b style="color:#d33">−${fd} ل.س</b></div>`:''}<div class="row"><b>المبلغ الكلي</b><b class="pc" style="font-size:20px">${tot()-d+f-fd} ل.س</b></div></div>
+ <div class="box"><b>🎟️ كود الخصم</b>${coupon?`<div class="row" style="border:0"><span><b>${esc(coupon.code)}</b> مُطبَّق · ${esc(cpDesc(coupon))}</span><button onclick="rmCp()">✖ إلغاء</button></div>`:`<input id="cp" placeholder="اكتب الكود إن وُجد"><button class="btn s" style="width:100%;margin-top:4px" onclick="applyCp()">تطبيق الكود</button>`}</div>
  <div class="box"><b>💳 طريقة الدفع</b><label class="pay"><input type="radio" name="pay" value="cash" ${info.pay==='sham'?'':'checked'} onchange="pshow();saveDraft()">💵 كاش عند الاستلام</label><label class="pay"><input type="radio" name="pay" value="sham" ${info.pay==='sham'?'checked':''} onchange="pshow();saveDraft()">📱 شام كاش</label><div id="shi" style="display:none;margin-top:8px;font-size:14px;color:var(--g)">حوّل المبلغ إلى حساب شام كاش، ثم أرسل إيصال التحويل في واتساب:${sh}</div></div>
  <div class="box"><b>🚪 ملاحظات التوصيل</b><div class="nts">${NOTES.map(x=>`<label class="nt"><input type="checkbox" name="nt" value="${x}" ${(info.nt||[]).includes(x)?'checked':''} onchange="saveDraft()">${x}</label>`).join('')}</div></div>
- <div class="box"><input id="n" oninput="saveDraft()" placeholder="الاسم" value="${esc(info.n)}"><input id="t" oninput="saveDraft()" type="tel" placeholder="رقم الهاتف" value="${esc(info.t)}"><input id="a" oninput="saveDraft()" placeholder="العنوان بالتفصيل" value="${esc(info.a)}"><textarea id="o" oninput="saveDraft()" rows="2" placeholder="ملاحظات أخرى (اختياري)">${esc(info.o)}</textarea></div>
+ <div class="box">${getAddrs().length>1?`<select onchange="$('a').value=getAddrs()[this.value].a;saveDraft()"><option value="">📍 اختر من عناويني المحفوظة</option>${getAddrs().map((x,i)=>`<option value="${i}">${esc(x.l)} - ${esc(x.a)}</option>`).join('')}</select>`:''}<input id="n" oninput="saveDraft()" placeholder="الاسم" value="${esc(info.n)}"><input id="t" oninput="saveDraft()" type="tel" placeholder="رقم الهاتف" value="${esc(info.t)}"><input id="a" oninput="saveDraft()" placeholder="العنوان بالتفصيل" value="${esc(info.a)}"><textarea id="o" oninput="saveDraft()" rows="2" placeholder="ملاحظات أخرى (اختياري)">${esc(info.o)}</textarea></div>
  <button class="btn" onclick="send()">إرسال الطلب عبر واتساب ✅</button></div>`;
  pshow();chrome('cart');
 }
 const ex=()=>{const u=L('zuser',{});return u.age?`\n🎂 العمر: ${u.age}`:''};
 const mp=()=>'';
-const VER='v6';
+const VER='v7';
 let pend=[];
 const waHref=(num,text)=>{const e=encodeURIComponent(text);return /Android|iPhone|iPad/i.test(navigator.userAgent)?`whatsapp://send?phone=${num}&text=${e}`:`https://wa.me/${num}?text=${e}`};
 function copyOrder(i){
@@ -302,15 +362,17 @@ function send(){
  const links=Object.values(by).map(g=>{
   const sub=g.items.reduce((s,i)=>s+i.qty*i.price,0);
   const dg=!coupon||!d?0:(coupon.type==='percent'?Math.round(sub*Math.min(100,+coupon.value||0)/100):Math.round(d*sub/total));
+  const fdg=!coupon?0:(coupon.type==='freeship'?(+g.fee||0):coupon.type==='shippct'?Math.round((+g.fee||0)*Math.min(100,+coupon.value||0)/100):0);
   let m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${g.rest}*\n`+g.items.map(i=>`• ${i.name} × ${i.qty} = ${i.qty*i.price}`).join('\n')+`\n\n💰 سعر المنتجات: ${sub} ل.س`;
   if(dg)m+=`\n🎟️ الحسم (${coupon.code}): −${dg} ل.س`;
   if(g.fee)m+=`\n🛵 أجور التوصيل: ${g.fee} ل.س`;
-  m+=`\n✅ *المبلغ الكلي: ${sub-dg+(+g.fee||0)} ل.س*\n\n💳 *طريقة الدفع: ${pay==='sham'?'شام كاش':'كاش عند الاستلام'}*`;
+  if(fdg)m+=`\n🎟️ خصم التوصيل (${coupon.code}): −${fdg} ل.س`;
+  m+=`\n✅ *المبلغ الكلي: ${sub-dg+(+g.fee||0)-fdg} ل.س*\n\n💳 *طريقة الدفع: ${pay==='sham'?'شام كاش':'كاش عند الاستلام'}*`;
   if(pay==='sham')m+=(g.sham?`\n📱 حساب شام كاش: ${g.sham}`:'')+`\n⚠️ سأرسل إيصال التحويل هنا`;
   m+=`\n\n👤 ${n}${ex()}\n📞 ${t}\n📍 ${a}${mp()}`+(nts.length?`\n🚪 تعليمات التوصيل: ${nts.join('، ')}`:'')+(o?`\n📝 ${o}`:'');
   return {rest:g.rest,num:waNum(g.wa),text:m};
  });
- const h=L('zhist',[]);h.unshift({date:Date.now(),total:total-d+feeTotal(),cart});localStorage.setItem('zhist',JSON.stringify(h.slice(0,20)));
+ const h=L('zhist',[]);h.unshift({date:Date.now(),total:total-d+feeTotal()-feeDisc(),cart});localStorage.setItem('zhist',JSON.stringify(h.slice(0,20)));
  cart={};saveC();coupon=null;localStorage.removeItem('zcoup');draft={};
  showSend(links,'📨 طلبك جاهز');
 }
@@ -325,13 +387,13 @@ function reorder(i){const o=L('zhist',[])[i];if(!o)return;cart=o.cart;saveC();go
 const F={
  restaurants:{t:'مطعم',f:[['name','اسم المطعم'],['cat','التصنيف (مطاعم، سوبر ماركت، حلويات...)'],['desc','نوع الأكل (فروج، شاورما)'],['img','رابط صورة الغلاف'],['logo','رابط الشعار'],['time','مدة التوصيل مثل 20-35'],['fee','أجور التوصيل'],['wa','رقم واتساب المطعم (مثل 0934845767)','tel'],['sham','حساب شام كاش للمطعم (اختياري)'],['rating','التقييم مثل 4.5']]},
  products:{t:'منتج',f:[['rid','المطعم','sel'],['sec','القسم (وجبات، مشروبات...)'],['name','اسم المنتج'],['price','السعر','number'],['desc','وصف قصير'],['img','رابط الصورة']]},
- coupons:{t:'كود خصم',f:[['code','اسم الكود (مثل ZEIN10)'],['type','نوع الخصم','typ'],['value','قيمة الخصم (نسبة % أو مبلغ)','number']]},
+ coupons:{t:'كود خصم',f:[['code','اسم الكود (مثل ZEIN10)'],['type','نوع الخصم','typ'],['value','القيمة: نسبة % أو مبلغ (اتركها فارغة للتوصيل المجاني)','number']]},
  offers:{t:'عرض',f:[['title','عنوان العرض'],['text','تفاصيل'],['img','رابط صورة'],['rid','مطعم مرتبط (اختياري)','sel']]}
 };
 let ed={};
 function form(c){
  const d=F[c];
- return `<div class="box"><h2 style="margin-top:0">${ed[c]?'تعديل':'إضافة'} ${d.t}</h2>`+d.f.map(([k,l,ty])=>ty==='typ'?`<select id="f_${c}_${k}"><option value="percent">نسبة مئوية %</option><option value="fixed">مبلغ ثابت (ل.س)</option></select>`:ty==='sel'?`<select id="f_${c}_${k}"><option value="">${l}</option>${R.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select>`:`<input id="f_${c}_${k}" type="${ty||'text'}" placeholder="${l}">`+((k==='img'||k==='logo')?`<label class="up">📷 اختر صورة من الجوال<input type="file" accept="image/*" hidden onchange="pick(this,'${c}','${k}')"></label><img id="pv_${c}_${k}" style="display:none;width:90px;height:90px;object-fit:cover;border-radius:12px;margin:6px 0">`:'')).join('')+`<button class="btn" onclick="sv('${c}')">حفظ</button>${ed[c]?`<button class="btn" style="background:#999;margin-top:6px" onclick="ed['${c}']=null;admin()">إلغاء التعديل</button>`:''}</div>`;
+ return `<div class="box"><h2 style="margin-top:0">${ed[c]?'تعديل':'إضافة'} ${d.t}</h2>`+d.f.map(([k,l,ty])=>ty==='typ'?`<select id="f_${c}_${k}"><option value="percent">🏷️ حسم نسبة % على المنتجات</option><option value="fixed">🏷️ حسم مبلغ ثابت على المنتجات</option><option value="freeship">🛵 توصيل مجاني</option><option value="shippct">🛵 حسم نسبة % على أجور التوصيل</option></select>`:ty==='sel'?`<select id="f_${c}_${k}"><option value="">${l}</option>${R.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select>`:`<input id="f_${c}_${k}" type="${ty||'text'}" placeholder="${l}">`+((k==='img'||k==='logo')?`<label class="up">📷 اختر صورة من الجوال<input type="file" accept="image/*" hidden onchange="pick(this,'${c}','${k}')"></label><img id="pv_${c}_${k}" style="display:none;width:90px;height:90px;object-fit:cover;border-radius:12px;margin:6px 0">`:'')).join('')+`<button class="btn" onclick="sv('${c}')">حفظ</button>${ed[c]?`<button class="btn" style="background:#999;margin-top:6px" onclick="ed['${c}']=null;admin()">إلغاء التعديل</button>`:''}</div>`;
 }
 function fill(c){const id=ed[c];if(!id)return;const x=({restaurants:R,products:P,offers:O,coupons:Cp})[c].find(z=>z.id===id)||{};F[c].f.forEach(([k])=>{const e=$(`f_${c}_${k}`);if(e)e.value=x[k]??'';const pv=$(`pv_${c}_${k}`);if(pv&&x[k]){pv.src=x[k];pv.style.display='block'}})}
 function admin(){
@@ -340,7 +402,7 @@ function admin(){
  $('app').innerHTML=`<div class="w" style="padding-top:14px"><button class="btn s" onclick="go('')">→ الموقع</button> <button class="btn s" style="background:#999" onclick="auth.signOut()">خروج</button>
  ${form('restaurants')}${form('products')}${form('offers')}${form('coupons')}
  <div class="box"><h2 style="margin-top:0">المطاعم والمنتجات</h2>`+R.map(r=>`<div class="row"><b>${esc(r.name)}</b><span><button onclick="tg('restaurants','${r.id}','open',${r.open!==false})">${r.open!==false?'إغلاق':'فتح'}</button><button onclick="edt('restaurants','${r.id}')">✏️</button><button onclick="del('restaurants','${r.id}')">🗑️</button></span></div>`+P.filter(p=>p.rid===r.id).map(p=>`<div class="row"><span>&nbsp;&nbsp;${esc(p.name)} - ${esc(p.price)}</span><span><button onclick="tg('products','${p.id}','available',${p.available!==false})">${p.available!==false?'إخفاء':'إظهار'}</button><button onclick="edt('products','${p.id}')">✏️</button><button onclick="del('products','${p.id}')">🗑️</button></span></div>`).join('')).join('')+`</div>
- <div class="box"><h2 style="margin-top:0">أكواد الخصم</h2>${Cp.map(c=>`<div class="row"><span>🎟️ <b>${esc(c.code)}</b> — ${c.type==='percent'?esc(c.value)+'%':esc(c.value)+' ل.س'}</span><span><button onclick="tg('coupons','${c.id}','active',${c.active!==false})">${c.active!==false?'إيقاف':'تفعيل'}</button><button onclick="edt('coupons','${c.id}')">✏️</button><button onclick="del('coupons','${c.id}')">🗑️</button></span></div>`).join('')||'لا يوجد'}</div>
+ <div class="box"><h2 style="margin-top:0">أكواد الخصم</h2>${Cp.map(c=>`<div class="row"><span>🎟️ <b>${esc(c.code)}</b> — ${esc(cpDesc(c))}</span><span><button onclick="tg('coupons','${c.id}','active',${c.active!==false})">${c.active!==false?'إيقاف':'تفعيل'}</button><button onclick="edt('coupons','${c.id}')">✏️</button><button onclick="del('coupons','${c.id}')">🗑️</button></span></div>`).join('')||'لا يوجد'}</div>
  <div class="box"><h2 style="margin-top:0">العروض</h2>${O.map(o=>`<div class="row"><span>${esc(o.title)}</span><span><button onclick="edt('offers','${o.id}')">✏️</button><button onclick="del('offers','${o.id}')">🗑️</button></span></div>`).join('')||'لا يوجد'}</div></div>`;
  Object.keys(F).forEach(fill);chrome('admin');
  if(!cpOk){cpOk=true;db.collection('coupons').get().then(sn=>{Cp=sn.docs.map(d=>({id:d.id,...d.data()}));if(cur==='admin')admin()}).catch(e=>console.error(e))}
@@ -348,7 +410,7 @@ function admin(){
 async function login(){try{await auth.signInWithEmailAndPassword($('em').value,$('pw').value)}catch(e){$('err').textContent='بيانات الدخول غير صحيحة'}}
 async function sv(c){
  const o={};F[c].f.forEach(([k,,ty])=>{const v=$(`f_${c}_${k}`).value.trim();o[k]=ty==='number'?+v||0:v});
- if(c==='coupons'){o.code=o.code.toUpperCase().replace(/\s/g,'');if(!o.code||!o.value)return alert('أدخل اسم الكود وقيمة الخصم')}
+ if(c==='coupons'){o.code=o.code.toUpperCase().replace(/\s/g,'');if(o.type==='freeship')o.value=100;if(!o.code||!o.value)return alert('أدخل اسم الكود وقيمة الخصم')}
  if(!o[(F[c].f.find(x=>x[0]==='name'||x[0]==='title')||F[c].f[0])[0]])return alert('أدخل الاسم/العنوان');
  if(c==='products'&&!o.rid)return alert('اختر المطعم');
  if(ed[c])await db.collection(c).doc(ed[c]).update(o);else{if(c==='products')o.available=true;if(c==='restaurants')o.open=true;if(c==='coupons')o.active=true;await db.collection(c).add(o)}
