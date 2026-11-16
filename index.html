@@ -183,7 +183,7 @@ function home(){
  cats=['الكل',...new Set(R.map(r=>r.cat).filter(Boolean))];if(!cats.includes(cat))cat='الكل';
  const last=L('zhist',[])[0];
  const list=R.filter(r=>cat==='الكل'||r.cat===cat);
- $('app').innerHTML=`<div class="top"><div class="w"><div class="hi"><span onclick="go('profile')" style="float:left;font-size:26px">👤</span>أهلاً ${esc((L('zuser',{}).n||'').split(' ')[0])} 👋<small>${L('zuser',{}).a?'📍 '+esc(L('zuser',{}).a):'ماذا تريد أن تطلب اليوم؟'}</small></div><div class="sb" onclick="go('search')">🔍 ابحث عن مطعم أو وجبة...</div></div></div>
+ $('app').innerHTML=`<div class="top"><div class="w"><div class="hi">أهلاً ${esc((L('zuser',{}).n||'').split(' ')[0])} 👋<small>${L('zuser',{}).a?'📍 '+esc(L('zuser',{}).a):'ماذا تريد أن تطلب اليوم؟'}</small></div><div class="sb" onclick="go('search')">🔍 ابحث عن مطعم أو وجبة...</div></div></div>
  <div class="cats">${cats.map((c,i)=>`<div class="ct2 ${c===cat?'on':''}" onclick="setCat(${i})"><div class="ic">${catIcon(c)}</div><span>${esc(c)}</span></div>`).join('')}</div>${notifCard()}
  ${O.length?`<div class="car">${O.map(o=>`<div class="bn" ${o.rid?`onclick="go('r=${o.rid}')"`:''}>${o.img?`<img ${im(o.img)}>`:''}<div><b>${esc(o.title)}</b>${esc(o.text)}</div></div>`).join('')}</div>`:''}
  <div class="w">${last?`<div class="reo"><div><b>اطلب مجدداً 🔁</b><br><small style="color:var(--g)">${last.total} ل.س · ${new Date(last.date).toLocaleDateString('ar')}</small></div><button class="btn s" onclick="reorder(0)">إعادة الطلب</button></div>`:''}
@@ -255,7 +255,7 @@ function account(){
  $('app').innerHTML=`<div class="ph"><div><div style="font-size:24px;font-weight:800">${esc(u.n)}</div><div style="color:var(--g);margin-top:4px">${esc(u.t)}</div></div><button class="btn s" style="background:#f0f0f3;color:var(--t)" onclick="go('profile')">✏️ تعديل</button></div>
  <div class="w"><div class="box" style="padding:4px 14px">${row('🧾','طلباتي',"go('orders')")}${row('📍','عناويني',"go('addresses')")}${row('🎟️','حسوماتي',"go('coupons')")}${row('❤️','المفضلة',"go('favs')")}</div>
  <div class="inv" onclick="shareApp()"><span>دعوة الأصدقاء<br><small style="font-weight:400">شارك التطبيق مع أصدقائك</small></span><span style="font-size:30px">🎁</span></div>
- <div class="box" style="padding:4px 14px">${row('🛵','انضم لفريق التوصيل',"joinUs('drv')")}${row('🍽️','انضم لنا كمطعم / متجر',"joinUs('rst')")}${row('🧑‍💼','انضم إلى فريق العمل',"joinUs('team')")}</div>
+ <div class="box" style="padding:4px 14px">${row('🛵','انضم لفريق التوصيل',"joinUs('drv')")}${row('🍽️','انضم لنا كمطعم / متجر',"joinUs('rst')")}</div>
  <div class="box" style="padding:4px 14px">${row('🔒','سياسة الخصوصية',"go('privacy')")}${row('📜','شروط الاستخدام',"go('terms')")}${row('🎧','الحصول على المساعدة',"support()")}${row('ℹ️','حول التطبيق',"go('about')")}</div>
  <p style="text-align:center;color:#aaa;font-size:13px">الإصدار ${VER7}</p></div>`;
  chrome('account');scrollTo(0,0);
