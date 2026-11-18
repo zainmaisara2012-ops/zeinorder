@@ -67,6 +67,7 @@ input[type=checkbox]{width:20px;height:20px;margin:0;accent-color:var(--c)}
 *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea,select{-webkit-user-select:text;user-select:text}
 img{-webkit-user-drag:none}
+.cpt{color:#d33;font-weight:700;font-size:13px}
 .bk{position:absolute;top:12px;right:12px;background:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:20px;box-shadow:0 2px 8px #0003}
 .rt{background:#fff;border-radius:24px 24px 0 0;margin-top:-22px;position:relative;padding:16px 14px 4px}
 input,select,textarea{width:100%;padding:12px;margin:5px 0;border:1px solid #ddd;border-radius:12px;font-size:16px;background:#fff}
@@ -134,6 +135,25 @@ async function load(){
  cpOk=false;
  const g=c=>db.collection(c).get().then(s=>s.docs.map(d=>({id:d.id,...d.data()})));
  [R,P,O]=await Promise.all([g('restaurants'),g('products'),g('offers')]);
+ loaded=true;lastLoad=Date.now();
+}
+let loaded=false,lastLoad=0;
+function syncCart(){
+ const removed=[];let changed=false;
+ if(!loaded)return {removed,changed};
+ for(const [id,i] of Object.entries(cart)){
+  const p=P.find(x=>x.id===id),r=p&&R.find(x=>x.id===p.rid);
+  if(!p||!r||p.available===false||r.open===false){removed.push(i.name);delete cart[id];continue}
+  const fee=+String(r.fee||'').replace(/[^\d.]/g,'')||0,price=+p.price;
+  if(+i.price!==price||(+i.fee||0)!==fee)changed=true;
+  Object.assign(i,{name:p.name,price,rest:r.name,rid:p.rid,wa:r.wa||'',sham:r.sham||'',fee});
+ }
+ if(removed.length||changed)saveC();
+ return {removed,changed};
+}
+function notifySync(r){
+ if(r.removed.length)alert('تمت إزالة منتجات لم تعد متاحة من سلتك:\n'+r.removed.join('، '));
+ else if(r.changed)alert('تم تحديث أسعار بعض المنتجات في سلتك حسب آخر تحديث');
 }
 function add(id,d){
  if(cur==='cart'&&$('n'))saveDraft();
@@ -181,12 +201,11 @@ function route(keep){
 }
 function home(){
  cats=['الكل',...new Set(R.map(r=>r.cat).filter(Boolean))];if(!cats.includes(cat))cat='الكل';
- const last=L('zhist',[])[0];
  const list=R.filter(r=>cat==='الكل'||r.cat===cat);
  $('app').innerHTML=`<div class="top"><div class="w"><div class="hi">أهلاً ${esc((L('zuser',{}).n||'').split(' ')[0])} 👋<small>${L('zuser',{}).a?'📍 '+esc(L('zuser',{}).a):'ماذا تريد أن تطلب اليوم؟'}</small></div><div class="sb" onclick="go('search')">🔍 ابحث عن مطعم أو وجبة...</div></div></div>
  <div class="cats">${cats.map((c,i)=>`<div class="ct2 ${c===cat?'on':''}" onclick="setCat(${i})"><div class="ic">${catIcon(c)}</div><span>${esc(c)}</span></div>`).join('')}</div>${notifCard()}
  ${O.length?`<div class="car">${O.map(o=>`<div class="bn" ${o.rid?`onclick="go('r=${o.rid}')"`:''}>${o.img?`<img ${im(o.img)}>`:''}<div><b>${esc(o.title)}</b>${esc(o.text)}</div></div>`).join('')}</div>`:''}
- <div class="w">${last?`<div class="reo"><div><b>اطلب مجدداً 🔁</b><br><small style="color:var(--g)">${last.total} ل.س · ${new Date(last.date).toLocaleDateString('ar')}</small></div><button class="btn s" onclick="reorder(0)">إعادة الطلب</button></div>`:''}
+ <div class="w">
  <h2>🔥 المطاعم</h2>${list.map(rcard).join('')||(err?'<p style="color:#d33">تعذر تحميل البيانات. تأكد من الإنترنت (وأطفئ VPN إن وُجد).</p><button class="btn" onclick="retry()">🔄 إعادة المحاولة</button>':'<p style="color:var(--g)">لا توجد مطاعم بعد. أضفها من لوحة التحكم #admin</p>')}</div>`;
  chrome('home');
 }
@@ -214,10 +233,14 @@ function rest(id){
  chrome('rest');
 }
 const NOTES=['🚪 لا تطرق الباب','📦 ضع الطلب عند الباب','📞 اتصل بي عند الوصول','🔕 لا ترن الجرس'];
+const cpValid=()=>coupon&&(!coupon.exp||Date.now()<coupon.exp);
+const fmtLeft=ms=>{const t=Math.max(0,Math.floor(ms/1000)),h=t/3600|0,m=(t/60|0)%60,x=t%60;return (h?h+':':'')+String(m).padStart(2,'0')+':'+String(x).padStart(2,'0')};
+const timerTag=(exp,cp)=>exp?`<br><small class="cpt" ${cp?'data-cp="cart" ':''}data-exp="${exp}">${exp>Date.now()?'⏳ متبقي '+fmtLeft(exp-Date.now()):'⌛ انتهت صلاحيته'}</small>`:'';
+setInterval(()=>{const now=Date.now();document.querySelectorAll('[data-exp]').forEach(e=>{const l=+e.dataset.exp-now;e.textContent=l>0?'⏳ متبقي '+fmtLeft(l):'⌛ انتهت صلاحيته';if(l<=0&&e.dataset.cp==='cart'&&coupon){coupon=null;localStorage.removeItem('zcoup');alert('انتهت صلاحية كود الحسم');cartPage()}})},1000);
 const cpDesc=c=>c.type==='freeship'?'🛵 توصيل مجاني':c.type==='shippct'?`🛵 ${c.value}% على التوصيل`:c.type==='fixed'?`${c.value} ل.س على المنتجات`:`${c.value}% على المنتجات`;
 const feeTotal=()=>{const m={};Object.values(cart).forEach(i=>{m[i.rid||i.rest]=+i.fee||0});return Object.values(m).reduce((a,b)=>a+b,0)};
-const feeDisc=()=>{const f=feeTotal();if(!coupon||!f)return 0;return coupon.type==='freeship'?f:coupon.type==='shippct'?Math.round(f*Math.min(100,+coupon.value||0)/100):0};
-const discAll=()=>{const t=tot();if(!coupon||!t||(coupon.type!=='percent'&&coupon.type!=='fixed'))return 0;const v=+coupon.value||0;return coupon.type==='percent'?Math.round(t*Math.min(100,v)/100):Math.min(t,Math.round(v))};
+const feeDisc=()=>{const f=feeTotal();if(!cpValid()||!f)return 0;return coupon.type==='freeship'?f:coupon.type==='shippct'?Math.round(f*Math.min(100,+coupon.value||0)/100):0};
+const discAll=()=>{const t=tot();if(!cpValid()||!t||(coupon.type!=='percent'&&coupon.type!=='fixed'))return 0;const v=+coupon.value||0;return coupon.type==='percent'?Math.round(t*Math.min(100,v)/100):Math.min(t,Math.round(v))};
 let tmpLoc=null;
 const mapUrl=l=>`https://www.google.com/maps?q=${l.lat},${l.lng}`;
 async function enableNotif(){
@@ -232,7 +255,7 @@ async function enableNotif(){
 }
 if(msg)try{msg.onMessage(async p=>{const n=p.notification||{};const rg=await navigator.serviceWorker.getRegistration();if(rg)rg.showNotification(n.title||'zainorder',{body:n.body||'',icon:'icon-192.png'})})}catch(e){}
 const notifCard=()=>(msg&&!/^PASTE/.test(VAPID)&&typeof Notification!=='undefined'&&Notification.permission==='default')?`<div class="w"><div class="reo" style="margin-top:6px"><div><b>🔔 الإشعارات</b><br><small style="color:var(--g)">فعّلها لتصلك العروض والخصومات</small></div><button class="btn s" onclick="enableNotif()">تفعيل</button></div></div>`:'';
-const VER7='v8';
+const VER7='v11';
 const getFavs=()=>L('zfav',[]);
 function togFav(id){const f=getFavs(),i=f.indexOf(id);if(i>=0)f.splice(i,1);else f.push(id);localStorage.setItem('zfav',JSON.stringify(f));route(true)}
 const getAddrs=()=>{let l=L('zaddr',null);if(!l){const u=L('zuser',{});l=u.a?[{l:'العنوان الأساسي',a:u.a}]:[]}return l};
@@ -269,7 +292,7 @@ function delAddr(i){const l=getAddrs();if(l.length<2)return alert('لا يمكن
 function addAddr(){const a=$('at').value.trim(),n=$('al').value.trim()||'عنوان';if(!a)return alert('اكتب العنوان');const l=getAddrs();l.push({l:n,a});localStorage.setItem('zaddr',JSON.stringify(l));addrPage()}
 function cpPage(){
  const l=L('zcps',[]);
- subPage('🎟️ حسوماتي',(l.map((c,i)=>`<div class="box"><b>${esc(c.code)}</b><br><small style="color:var(--g)">${esc(cpDesc(c))}</small><div style="margin-top:8px"><button class="btn s" onclick="useCp(${i})">استخدمه الآن</button> <button class="btn s" style="background:#e5e5ea;color:#d33" onclick="delCp(${i})">🗑️</button></div></div>`).join('')||'<p style="color:var(--g)">لا توجد حسومات محفوظة. أضف كوداً أدناه.</p>')+`<div class="box"><b>➕ إضافة كود حسم</b><input id="ncp" placeholder="اكتب الكود"><button class="btn" onclick="addCp()">إضافة</button></div>`);
+ subPage('🎟️ حسوماتي',(l.map((c,i)=>`<div class="box"><b>${esc(c.code)}</b><br><small style="color:var(--g)">${esc(cpDesc(c))}</small>${timerTag(c.exp,false)}<div style="margin-top:8px"><button class="btn s" onclick="useCp(${i})">استخدمه الآن</button> <button class="btn s" style="background:#e5e5ea;color:#d33" onclick="delCp(${i})">🗑️</button></div></div>`).join('')||'<p style="color:var(--g)">لا توجد حسومات محفوظة. أضف كوداً أدناه.</p>')+`<div class="box"><b>➕ إضافة كود حسم</b><input id="ncp" placeholder="اكتب الكود"><button class="btn" onclick="addCp()">إضافة</button></div>`);
 }
 async function addCp(){const code=($('ncp').value||'').trim().toUpperCase().replace(/\s/g,'');if(!code)return alert('اكتب الكود');try{saveCp(await fetchCp(code));cpPage()}catch(e){alert(typeof e==='string'?e:'تعذر التحقق، تأكد من الإنترنت')}}
 async function useCp(i){const c=L('zcps',[])[i];try{coupon=await fetchCp(c.code);localStorage.setItem('zcoup',JSON.stringify(coupon));draft={};go('cart')}catch(e){alert(typeof e==='string'?e:'تعذر التحقق، تأكد من الإنترنت')}}
@@ -303,7 +326,8 @@ async function fetchCp(code){
  if(sn.empty)throw 'الكود غير صحيح';
  const c=sn.docs[0].data();
  if(c.active===false)throw 'هذا الكود غير فعّال';
- return {code,type:c.type,value:+c.value||0};
+ if(c.expiresAt&&Date.now()>c.expiresAt)throw 'انتهت صلاحية هذا الكود';
+ return {code,type:c.type,value:+c.value||0,exp:+c.expiresAt||0};
 }
 function saveCp(c){const l=L('zcps',[]).filter(x=>x.code!==c.code);l.unshift(c);localStorage.setItem('zcps',JSON.stringify(l.slice(0,30)))}
 async function applyCp(){
@@ -315,13 +339,14 @@ async function applyCp(){
 }
 function rmCp(){saveDraft();coupon=null;localStorage.removeItem('zcoup');cartPage()}
 function cartPage(){
+ if(coupon&&coupon.exp&&Date.now()>=coupon.exp){coupon=null;localStorage.removeItem('zcoup')}
  const it=Object.entries(cart),info={...L('zinfo',{}),...draft};
  if(!it.length){$('app').innerHTML='<div class="w" style="padding-top:40px;text-align:center"><h2>🛒 السلة فارغة</h2><button class="btn" onclick="go(\'\')">تصفح المطاعم</button></div>';return chrome('cart')}
  const d=discAll(),f=feeTotal(),fd=feeDisc(),shams={};Object.values(cart).forEach(i=>{if(i.sham)shams[i.rest]=i.sham});
  const sh=Object.entries(shams).map(([r,x])=>`<div>🍽️ ${esc(r)}: <b>${esc(x)}</b></div>`).join('')||'<div>سيصلك رقم الحساب من المطعم على واتساب.</div>';
  $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>🛒 سلتك</h2><div class="box">${it.map(([id,i])=>`<div class="row"><span><b>${esc(i.name)}</b><br><small style="color:var(--g)">${esc(i.rest)} · ${i.price} × ${i.qty} = ${i.price*i.qty}</small></span><div class="q"><button onclick="add('${id}',1)">+</button><b>${i.qty}</b><button class="mn" onclick="add('${id}',-1)">−</button></div></div>`).join('')}
  <div class="row"><span>سعر المنتجات</span><b>${tot()} ل.س</b></div>${f?`<div class="row"><span>🛵 أجور التوصيل</span><b>${f} ل.س</b></div>`:''}${d?`<div class="row"><span>🎟️ الحسم</span><b style="color:#d33">−${d} ل.س</b></div>`:''}${fd?`<div class="row"><span>🎟️ خصم التوصيل</span><b style="color:#d33">−${fd} ل.س</b></div>`:''}<div class="row"><b>المبلغ الكلي</b><b class="pc" style="font-size:20px">${tot()-d+f-fd} ل.س</b></div></div>
- <div class="box"><b>🎟️ كود الخصم</b>${coupon?`<div class="row" style="border:0"><span><b>${esc(coupon.code)}</b> مُطبَّق · ${esc(cpDesc(coupon))}</span><button onclick="rmCp()">✖ إلغاء</button></div>`:`<input id="cp" placeholder="اكتب الكود إن وُجد"><button class="btn s" style="width:100%;margin-top:4px" onclick="applyCp()">تطبيق الكود</button>`}</div>
+ <div class="box"><b>🎟️ كود الخصم</b>${coupon?`<div class="row" style="border:0"><span><b>${esc(coupon.code)}</b> مُطبَّق · ${esc(cpDesc(coupon))}${timerTag(coupon.exp,true)}</span><button onclick="rmCp()">✖ إلغاء</button></div>`:`<input id="cp" placeholder="اكتب الكود إن وُجد"><button class="btn s" style="width:100%;margin-top:4px" onclick="applyCp()">تطبيق الكود</button>`}</div>
  <div class="box"><b>💳 طريقة الدفع</b><label class="pay"><input type="radio" name="pay" value="cash" ${info.pay==='sham'?'':'checked'} onchange="pshow();saveDraft()">💵 كاش عند الاستلام</label><label class="pay"><input type="radio" name="pay" value="sham" ${info.pay==='sham'?'checked':''} onchange="pshow();saveDraft()">📱 شام كاش</label><div id="shi" style="display:none;margin-top:8px;font-size:14px;color:var(--g)">حوّل المبلغ إلى حساب شام كاش، ثم أرسل إيصال التحويل في واتساب:${sh}</div></div>
  <div class="box"><b>🚪 ملاحظات التوصيل</b><div class="nts">${NOTES.map(x=>`<label class="nt"><input type="checkbox" name="nt" value="${x}" ${(info.nt||[]).includes(x)?'checked':''} onchange="saveDraft()">${x}</label>`).join('')}</div></div>
  <div class="box">${getAddrs().length>1?`<select onchange="$('a').value=getAddrs()[this.value].a;saveDraft()"><option value="">📍 اختر من عناويني المحفوظة</option>${getAddrs().map((x,i)=>`<option value="${i}">${esc(x.l)} - ${esc(x.a)}</option>`).join('')}</select>`:''}<input id="n" oninput="saveDraft()" placeholder="الاسم" value="${esc(info.n)}"><input id="t" oninput="saveDraft()" type="tel" placeholder="رقم الهاتف" value="${esc(info.t)}"><input id="a" oninput="saveDraft()" placeholder="العنوان بالتفصيل" value="${esc(info.a)}"><textarea id="o" oninput="saveDraft()" rows="2" placeholder="ملاحظات أخرى (اختياري)">${esc(info.o)}</textarea></div>
@@ -330,7 +355,7 @@ function cartPage(){
 }
 const ex=()=>{const u=L('zuser',{});return u.age?`\n🎂 العمر: ${u.age}`:''};
 const mp=()=>'';
-const VER='v8';
+const VER='v11';
 let pend=[];
 const waHref=(num,text)=>{const e=encodeURIComponent(text);return /Android|iPhone|iPad/i.test(navigator.userAgent)?`whatsapp://send?phone=${num}&text=${e}`:`https://wa.me/${num}?text=${e}`};
 function copyOrder(i){
@@ -351,7 +376,8 @@ function quick(id){
  const m=`🛍️ *طلب جديد - zainorder*\n\n🍽️ *${r.name||''}*\n• ${p.name} × 1 = ${p.price}\n\n💰 سعر المنتج: ${p.price} ل.س${f?`\n🛵 أجور التوصيل: ${f} ل.س`:''}\n✅ *المبلغ الكلي: ${+p.price+f} ل.س*\n💳 طريقة الدفع (كاش / شام كاش): \n\n👤 ${i.n||'الاسم: '}${ex()}\n📞 ${i.t||'الهاتف: '}\n📍 ${i.a||'العنوان: '}${mp()}`;
  showSend([{rest:r.name||'',num:waNum(r.wa),text:m}],'📨 طلبك جاهز');
 }
-function send(){
+async function send(){
+ if(coupon&&coupon.exp&&Date.now()>=coupon.exp){coupon=null;localStorage.removeItem('zcoup');alert('انتهت صلاحية كود الحسم، تم إلغاؤه');return cartPage()}
  const Z={...L('zinfo',{}),...L('zuser',{})};
  const n=$('n').value.trim()||Z.n||'',t=$('t').value.trim()||Z.t||'',a=$('a').value.trim()||Z.a||'',o=$('o').value.trim();
  if(!n){$('n').focus();return alert('الرجاء كتابة الاسم')}
@@ -359,6 +385,11 @@ function send(){
  if(!a){$('a').focus();return alert('الرجاء كتابة العنوان')}
  const pay=(document.querySelector('input[name=pay]:checked')||{}).value||'cash';
  const nts=[...document.querySelectorAll('input[name=nt]:checked')].map(x=>x.value);
+ saveDraft();
+ try{await Promise.race([load(),new Promise((_,j)=>setTimeout(j,4000))])}catch(e){}
+ const sr=syncCart();if(sr.removed.length||sr.changed){notifySync(sr);return cartPage()}
+ if(coupon){try{coupon=await fetchCp(coupon.code);localStorage.setItem('zcoup',JSON.stringify(coupon))}catch(e){if(typeof e==='string'){coupon=null;localStorage.removeItem('zcoup');alert('كود الحسم لم يعد صالحاً، تم إلغاؤه');return cartPage()}}}
+ if(!Object.keys(cart).length)return cartPage();
  localStorage.setItem('zinfo',JSON.stringify({n,t,a}));
  const total=tot(),d=discAll();
  const by={};Object.values(cart).forEach(i=>{const k=i.rid||i.rest;(by[k]=by[k]||{rest:i.rest,wa:i.wa,sham:i.sham,fee:+i.fee||0,items:[]}).items.push(i)});
@@ -384,13 +415,13 @@ function orders(){
  $('app').innerHTML=`<div class="w" style="padding-top:14px"><h2>🧾 طلباتي</h2>`+(h.map((o,i)=>`<div class="box"><b>${new Date(o.date).toLocaleString('ar')}</b><br><small style="color:var(--g)">${Object.values(o.cart).map(x=>esc(x.name)+' ×'+x.qty).join('، ')}</small><div class="row" style="border:0"><b>${o.total} ل.س</b><button class="btn s" onclick="reorder(${i})">إعادة الطلب</button></div></div>`).join('')||'<p style="color:var(--g)">لا توجد طلبات سابقة.</p>')+'</div>';
  chrome('orders');
 }
-function reorder(i){const o=L('zhist',[])[i];if(!o)return;cart=o.cart;saveC();go('cart')}
+function reorder(i){const o=L('zhist',[])[i];if(!o)return;cart=JSON.parse(JSON.stringify(o.cart));saveC();const r=syncCart();notifySync(r);if(!Object.keys(cart).length)return orders();go('cart')}
 
 // ===== لوحة التحكم =====
 const F={
  restaurants:{t:'مطعم',f:[['name','اسم المطعم'],['cat','التصنيف (مطاعم، سوبر ماركت، حلويات...)'],['desc','نوع الأكل (فروج، شاورما)'],['img','رابط صورة الغلاف'],['logo','رابط الشعار'],['time','مدة التوصيل مثل 20-35'],['fee','أجور التوصيل'],['wa','رقم واتساب المطعم (مثل 0934845767)','tel'],['sham','حساب شام كاش للمطعم (اختياري)'],['rating','التقييم مثل 4.5']]},
  products:{t:'منتج',f:[['rid','المطعم','sel'],['sec','القسم (وجبات، مشروبات...)'],['name','اسم المنتج'],['price','السعر','number'],['desc','وصف قصير'],['img','رابط الصورة']]},
- coupons:{t:'كود خصم',f:[['code','اسم الكود (مثل ZEIN10)'],['type','نوع الخصم','typ'],['value','القيمة: نسبة % أو مبلغ (اتركها فارغة للتوصيل المجاني)','number']]},
+ coupons:{t:'كود خصم',f:[['code','اسم الكود (مثل ZEIN10)'],['type','نوع الخصم','typ'],['value','القيمة: نسبة % أو مبلغ (اتركها فارغة للتوصيل المجاني)','number'],['minutes','مدة الصلاحية بالدقائق (مثل 20، اتركها فارغة بلا وقت)','number']]},
  offers:{t:'عرض',f:[['title','عنوان العرض'],['text','تفاصيل'],['img','رابط صورة'],['rid','مطعم مرتبط (اختياري)','sel']]}
 };
 let ed={};
@@ -405,7 +436,7 @@ function admin(){
  $('app').innerHTML=`<div class="w" style="padding-top:14px"><button class="btn s" onclick="go('')">→ الموقع</button> <button class="btn s" style="background:#999" onclick="auth.signOut()">خروج</button>
  ${form('restaurants')}${form('products')}${form('offers')}${form('coupons')}
  <div class="box"><h2 style="margin-top:0">المطاعم والمنتجات</h2>`+R.map(r=>`<div class="row"><b>${esc(r.name)}</b><span><button onclick="tg('restaurants','${r.id}','open',${r.open!==false})">${r.open!==false?'إغلاق':'فتح'}</button><button onclick="edt('restaurants','${r.id}')">✏️</button><button onclick="del('restaurants','${r.id}')">🗑️</button></span></div>`+P.filter(p=>p.rid===r.id).map(p=>`<div class="row"><span>&nbsp;&nbsp;${esc(p.name)} - ${esc(p.price)}</span><span><button onclick="tg('products','${p.id}','available',${p.available!==false})">${p.available!==false?'إخفاء':'إظهار'}</button><button onclick="edt('products','${p.id}')">✏️</button><button onclick="del('products','${p.id}')">🗑️</button></span></div>`).join('')).join('')+`</div>
- <div class="box"><h2 style="margin-top:0">أكواد الخصم</h2>${Cp.map(c=>`<div class="row"><span>🎟️ <b>${esc(c.code)}</b> — ${esc(cpDesc(c))}</span><span><button onclick="tg('coupons','${c.id}','active',${c.active!==false})">${c.active!==false?'إيقاف':'تفعيل'}</button><button onclick="edt('coupons','${c.id}')">✏️</button><button onclick="del('coupons','${c.id}')">🗑️</button></span></div>`).join('')||'لا يوجد'}</div>
+ <div class="box"><h2 style="margin-top:0">أكواد الخصم</h2>${Cp.map(c=>`<div class="row"><span>🎟️ <b>${esc(c.code)}</b> — ${esc(cpDesc(c))}${c.minutes?`<br><small style="color:${c.expiresAt>Date.now()?'#128c4a':'#d33'}">⏱ ${c.minutes} دقيقة · ${c.expiresAt>Date.now()?'ينتهي '+new Date(c.expiresAt).toLocaleTimeString('ar',{hour:'2-digit',minute:'2-digit'}):'انتهى'}</small>`:''}</span><span>${c.minutes?`<button onclick="renewCp('${c.id}',${c.minutes})">🔄 تجديد</button>`:''}<button onclick="tg('coupons','${c.id}','active',${c.active!==false})">${c.active!==false?'إيقاف':'تفعيل'}</button><button onclick="edt('coupons','${c.id}')">✏️</button><button onclick="del('coupons','${c.id}')">🗑️</button></span></div>`).join('')||'لا يوجد'}</div>
  <div class="box"><h2 style="margin-top:0">العروض</h2>${O.map(o=>`<div class="row"><span>${esc(o.title)}</span><span><button onclick="edt('offers','${o.id}')">✏️</button><button onclick="del('offers','${o.id}')">🗑️</button></span></div>`).join('')||'لا يوجد'}</div></div>`;
  Object.keys(F).forEach(fill);chrome('admin');
  if(!cpOk){cpOk=true;db.collection('coupons').get().then(sn=>{Cp=sn.docs.map(d=>({id:d.id,...d.data()}));if(cur==='admin')admin()}).catch(e=>console.error(e))}
@@ -413,7 +444,7 @@ function admin(){
 async function login(){try{await auth.signInWithEmailAndPassword($('em').value,$('pw').value)}catch(e){$('err').textContent='بيانات الدخول غير صحيحة'}}
 async function sv(c){
  const o={};F[c].f.forEach(([k,,ty])=>{const v=$(`f_${c}_${k}`).value.trim();o[k]=ty==='number'?+v||0:v});
- if(c==='coupons'){o.code=o.code.toUpperCase().replace(/\s/g,'');if(o.type==='freeship')o.value=100;if(!o.code||!o.value)return alert('أدخل اسم الكود وقيمة الخصم')}
+ if(c==='coupons'){o.code=o.code.toUpperCase().replace(/\s/g,'');if(o.type==='freeship')o.value=100;o.minutes=+o.minutes||0;o.expiresAt=o.minutes?Date.now()+o.minutes*60000:0;if(!o.code||!o.value)return alert('أدخل اسم الكود وقيمة الخصم')}
  if(!o[(F[c].f.find(x=>x[0]==='name'||x[0]==='title')||F[c].f[0])[0]])return alert('أدخل الاسم/العنوان');
  if(c==='products'&&!o.rid)return alert('اختر المطعم');
  if(ed[c])await db.collection(c).doc(ed[c]).update(o);else{if(c==='products')o.available=true;if(c==='restaurants')o.open=true;if(c==='coupons')o.active=true;await db.collection(c).add(o)}
@@ -434,15 +465,21 @@ function pick(el,c,k){
 }
 function edt(c,id){ed[c]=id;admin();scrollTo(0,0)}
 async function del(c,id){if(!confirm('تأكيد الحذف؟'))return;if(c==='restaurants')for(const p of P.filter(p=>p.rid===id))await db.collection('products').doc(p.id).delete();await db.collection(c).doc(id).delete();await load();admin()}
+async function renewCp(id,m){await db.collection('coupons').doc(id).update({expiresAt:Date.now()+m*60000,active:true});await load();admin()}
 async function tg(c,id,k,cur){await db.collection(c).doc(id).update({[k]:!cur});await load();admin()}
 
 if('serviceWorker' in navigator){const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!window.__rl){window.__rl=1;location.reload()}});window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{}))}
-function retry(){err=false;route(true);Promise.race([load(),new Promise((_,j)=>setTimeout(()=>j('timeout'),25000))]).then(()=>route(true)).catch(e=>{console.error(e);err=true;route(true)})}
+function retry(){err=false;route(true);Promise.race([load(),new Promise((_,j)=>setTimeout(()=>j('timeout'),25000))]).then(()=>{notifySync(syncCart());route(true)}).catch(e=>{console.error(e);err=true;route(true)})}
 document.addEventListener('contextmenu',e=>{if(!/^(INPUT|TEXTAREA)$/.test(e.target.tagName))e.preventDefault()});
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden||!loaded||Date.now()-lastLoad<120000)return;
+ if(['cart','admin','reg','profile','addresses','coupons'].includes(cur))return;
+ load().then(()=>{notifySync(syncCart());route(true)}).catch(()=>{});
+});
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h!==cur){prev=cur;cur=h;route()}});
 if(auth)auth.onAuthStateChanged(()=>{if(cur==='admin')route(true)});
 route();
-Promise.race([load(),new Promise((_,j)=>setTimeout(()=>j('timeout'),25000))]).then(()=>{if(cur==='admin'&&[...document.querySelectorAll('#app input,#app select')].some(i=>i.value))return;route(true)}).catch(e=>{console.error(e);err=true;route(true)});
+Promise.race([load(),new Promise((_,j)=>setTimeout(()=>j('timeout'),25000))]).then(()=>{notifySync(syncCart());if(cur==='admin'&&[...document.querySelectorAll('#app input,#app select')].some(i=>i.value))return;route(true)}).catch(e=>{console.error(e);err=true;route(true)});
 </script>
 </body>
 </html>
